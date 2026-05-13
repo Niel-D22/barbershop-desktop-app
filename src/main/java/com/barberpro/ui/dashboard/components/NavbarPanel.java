@@ -1,4 +1,4 @@
-package com.barberpro.ui.Dashboard.components;
+package com.barberpro.ui.dashboard.components;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;

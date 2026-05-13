@@ -2,6 +2,9 @@ package com.barberpro.dao;
 
 import com.barberpro.config.DatabaseConnection;
 import com.barberpro.model.User;
+import com.barberpro.model.Owner;
+import com.barberpro.model.Kasir;
+import com.barberpro.model.Barber;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -108,13 +111,55 @@ public class UserDAO {
     }
 
     private User mapUser(ResultSet rs) throws SQLException {
-        return new User(
-                rs.getInt("id_user"),
-                rs.getString("username"),
-                rs.getString("password_hash"),
-                rs.getString("role"),
-                rs.getString("nama"),
+
+        String role = rs.getString("role");
+
+        User user;
+
+        switch (role.toUpperCase()) {
+
+            case "OWNER":
+                user = new Owner();
+                break;
+
+            case "KASIR":
+                user = new Kasir();
+                break;
+
+            case "BARBER":
+                user = new Barber();
+                break;
+
+            default:
+                throw new IllegalArgumentException(
+                        "Role tidak dikenal: " + role
+                );
+        }
+
+        user.setIdUser(
+                rs.getInt("id_user")
+        );
+
+        user.setUsername(
+                rs.getString("username")
+        );
+
+        user.setPasswordHash(
+                rs.getString("password_hash")
+        );
+
+        user.setRole(
+                role
+        );
+
+        user.setNama(
+                rs.getString("nama")
+        );
+
+        user.setAktif(
                 rs.getBoolean("aktif")
         );
+
+        return user;
     }
 }

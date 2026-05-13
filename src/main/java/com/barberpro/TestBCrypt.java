@@ -6,7 +6,7 @@ public class TestBCrypt {
 
     public static void main(String[] args) {
 
-        String password = "kasir123";
+        String password = "barber2";
 
         String hash = BCrypt.hashpw(
                 password,
@@ -17,7 +17,7 @@ public class TestBCrypt {
         System.out.println(hash);
 
         boolean match = BCrypt.checkpw(
-                "kasir123",
+                "barber2",
                 hash
         );
 

@@ -1,56 +1,60 @@
-BarberShop_Kelompok4_NEW/
-├── src/ (30.2 KB)
-│   ├── main/ (30.2 KB)
-│   │   ├── java/ (30.2 KB)
-│   │   │   ├── com/ (30.2 KB)
-│   │   │       ├── barberpro/ (30.2 KB)
-│   │   │           ├── config/ (2.3 KB)
-│   │   │           │   └── DatabaseConnection.java (2.3 KB)
-│   │   │           ├── dao/ (1.4 KB)
-│   │   │           │   └── UserDAO.java (1.4 KB)
-│   │   │           ├── model/ (1.4 KB)
-│   │   │           │   └── User.java (1.4 KB)
-│   │   │           ├── service/ (1.8 KB)
-│   │   │           │   └── AuthService.java (1.8 KB)
-│   │   │           ├── ui/ (19.4 KB)
-│   │   │           │   ├── Dashboard/ (12.3 KB)
-│   │   │           │   │   ├── components/ (6.3 KB)
-│   │   │           │   │   │   ├── MenuItem.java (1.4 KB)
-│   │   │           │   │   │   ├── NavbarPanel.java (1.7 KB)
-│   │   │           │   │   │   └── SidebarPanel.java (3.2 KB)
-│   │   │           │   │   ├── pages/ (3.3 KB)
-│   │   │           │   │   │   ├── BarberPage.java (726.0 B)
-│   │   │           │   │   │   ├── BookingPage.java (716.0 B)
-│   │   │           │   │   │   ├── DashboardPage.java (533.0 B)
-│   │   │           │   │   │   ├── ReportPage.java (349.0 B)
-│   │   │           │   │   │   ├── SettingsPage.java (352.0 B)
-│   │   │           │   │   │   ├── TransactionPage.java (357.0 B)
-│   │   │           │   │   │   └── UserPage.java (331.0 B)
-│   │   │           │   │   └── DashboardFrame.java (2.8 KB)
-│   │   │           │   ├── login/ (7.1 KB)
-│   │   │           │       └── LoginFrame.java (7.1 KB)
-│   │   │           ├── util/ (1.8 KB)
-│   │   │           │   └── SessionManager.java (1.8 KB)
-│   │   │           ├── Main.java (1.5 KB)
-│   │   │           └── TestBCrypt.java (534.0 B)
-│   │   ├── resources/ (0.0 B)
-│   ├── test/ (0.0 B)
-│   │   ├── java/ (0.0 B)
-│   └── Struktur_FOlder (0.0 B)
-├── target/ (40.1 KB)
-│   ├── classes/ (40.1 KB)
-│   │   ├── com/ (40.1 KB)
-│   │       ├── barberpro/ (40.1 KB)
-│   │           ├── config/ (2.6 KB)
-│   │           ├── dao/ (2.9 KB)
-│   │           ├── model/ (1.7 KB)
-│   │           ├── service/ (2.4 KB)
-│   │           ├── ui/ (24.8 KB)
-│   │           │   ├── Dashboard/ (17.9 KB)
-│   │           │   │   ├── components/ (9.5 KB)
-│   │           │   │   ├── pages/ (6.1 KB)
-│   │           │   ├── login/ (6.9 KB)
-│   │           ├── util/ (1.9 KB)
-│   ├── generated-sources/ (0.0 B)
-│       ├── annotations/ (0.0 B)
-└── pom.xml (2.8 KB)
+barberpro/
+├── config/
+│   └── DatabaseConnection.java
+├── dao/
+│   ├── BarberDAO.java
+│   ├── BookingDAO.java
+│   ├── LayananDAO.java
+│   ├── PelangganDAO.java
+│   ├── TransaksiDAO.java
+│   └── UserDAO.java
+├── interfaces/
+│   └── Purchasable.java
+├── model/
+│   ├── Barber.java
+│   ├── Booking.java
+│   ├── Kasir.java
+│   ├── Layanan.java
+│   ├── Owner.java
+│   ├── Pelanggan.java
+│   ├── Transaksi.java
+│   └── User.java
+├── service/
+│   ├── AuthService.java
+│   ├── BookingService.java
+│   └── TransaksiService.java
+├── ui/
+│   ├── dashboard/
+│   │   ├── components/
+│   │   │   ├── common/
+│   │   │   │   ├── BaseButton.java
+│   │   │   │   ├── BaseCard.java
+│   │   │   │   ├── BaseTable.java
+│   │   │   │   ├── FormInput.java
+│   │   │   │   └── Theme.java
+│   │   │   ├── NavbarPanel.java
+│   │   │   └── SidebarPanel.java
+│   │   ├── pages/
+│   │   │   ├── barber/
+│   │   │   │   ├── AntrianSayaPage.java
+│   │   │   │   └── DashboardBarberPage.java
+│   │   │   ├── kasir/
+│   │   │   │   ├── AntrianPage.java
+│   │   │   │   ├── ProsesBayarPage.java
+│   │   │   │   ├── RiwayatKasirPage.java
+│   │   │   │   └── TambahWalkinPage.java
+│   │   │   ├── owner/
+│   │   │       ├── BarberPage.java
+│   │   │       ├── DashboardPage.java
+│   │   │       ├── KelolaUserPage.java
+│   │   │       ├── LaporanPage.java
+│   │   │       ├── LayananPage.java
+│   │   │       ├── PelangganPage.java
+│   │   │       └── RiwayatTransaksiPage.java
+│   │   └── DashboardFrame.java
+│   ├── login/
+│       └── LoginFrame.java
+├── util/
+│   └── SessionManager.java
+├── Main.java
+└── TestBCrypt.java

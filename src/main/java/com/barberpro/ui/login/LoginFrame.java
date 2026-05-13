@@ -1,6 +1,6 @@
 package com.barberpro.ui.login;
 
-import com.barberpro.ui.Dashboard.DashboardFrame;
+import com.barberpro.ui.dashboard.DashboardFrame;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;

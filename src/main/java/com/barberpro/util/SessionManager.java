@@ -28,6 +28,17 @@ public class SessionManager {
         if (currentUser == null) return "";
         return currentUser.getUsername();
     }
+    public static boolean isOwner() {
+        return getRole().equalsIgnoreCase("OWNER");
+    }
+
+    public static boolean isKasir() {
+        return getRole().equalsIgnoreCase("KASIR");
+    }
+
+    public static boolean isBarber() {
+        return getRole().equalsIgnoreCase("BARBER");
+    }
 
     public static void logout() {
         currentUser = null;
