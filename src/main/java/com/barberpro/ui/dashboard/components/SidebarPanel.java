@@ -1,33 +1,91 @@
 package com.barberpro.ui.dashboard.components;
-import com.barberpro.ui.login.LoginFrame;
+
 import com.barberpro.ui.dashboard.DashboardFrame;
+import com.barberpro.ui.dashboard.components.common.CustomConfirmDialog;
+import com.barberpro.ui.login.LoginFrame;
 import com.barberpro.util.SessionManager;
 
+import com.formdev.flatlaf.extras.FlatSVGIcon;
+
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SidebarPanel extends JPanel {
 
+    // =====================================================
+    // COLORS
+    // =====================================================
+
     private static final Color BG_SIDEBAR =
-            Color.WHITE;
+            new Color(20,20,20);
 
-    private static final Color COLOR_TEXT =
-            new Color(60,60,60);
+    private static final Color BG_HOVER =
+            new Color(36,36,36);
 
-    private static final Color COLOR_ACTIVE =
-            new Color(18,18,18);
+    private static final Color BG_ACTIVE =
+            new Color(248,248,248);
 
-    private static final Color COLOR_ACTIVE_BG =
-            new Color(240,240,235);
+    private static final Color TEXT_NORMAL =
+            new Color(190,190,190);
 
-    private static final Color COLOR_MUTED =
-            new Color(140,140,140);
+    private static final Color TEXT_ACTIVE =
+            new Color(20,20,20);
 
-    private static final Color COLOR_BORDER =
-            new Color(230,230,225);
+    private static final Color TEXT_SECTION =
+            new Color(110,110,110);
+
+    private static final Color USER_CARD =
+            new Color(28,28,28);
+
+    private static final Color BORDER =
+            new Color(45,45,45);
+
+    // =====================================================
+    // ICONS
+    // =====================================================
+
+    private final Map<String, String> ICONS =
+            new HashMap<>() {{
+                put("Dashboard",
+                        "icons/layout-dashboard.svg");
+
+                put("Data Barber",
+                        "icons/scissors.svg");
+
+                put("Data Layanan",
+                        "icons/briefcase-business.svg");
+
+                put("Data Pelanggan",
+                        "icons/users.svg");
+
+                put("Kelola User",
+                        "icons/user-cog.svg");
+
+                put("Laporan",
+                        "icons/chart-column.svg");
+
+                put("Riwayat Transaksi",
+                        "icons/receipt-text.svg");
+
+                put("Antrian Hari Ini",
+                        "icons/list-ordered.svg");
+
+                put("Tambah Walk-in",
+                        "icons/users.svg");
+
+                put("Proses Bayar",
+                        "icons/wallet.svg");
+
+                put("Riwayat Kasir",
+                        "icons/receipt-text.svg");
+
+                put("Antrian Saya",
+                        "icons/list-ordered.svg");
+            }};
 
     private final DashboardFrame dashboardFrame;
 
@@ -37,386 +95,567 @@ public class SidebarPanel extends JPanel {
 
         this.dashboardFrame = frame;
 
-        setPreferredSize(new Dimension(220,0));
+        setPreferredSize(
+                new Dimension(250, 0)
+        );
 
         setBackground(BG_SIDEBAR);
 
         setLayout(null);
 
-        setBorder(
-                BorderFactory.createMatteBorder(
-                        0,
-                        0,
-                        0,
-                        1,
-                        COLOR_BORDER
-                )
-        );
-
         buildSidebar();
     }
 
-    // ==================================================
-    // BUILD SIDEBAR
-    // ==================================================
+    // =====================================================
+    // BUILD
+    // =====================================================
 
     private void buildSidebar() {
 
-        buildLogo();
+        removeAll();
 
-        buildRoleInfo();
+        buildLogo();
 
         buildMenus();
 
         buildUserCard();
+
+        repaint();
+
+        revalidate();
     }
 
-    // ==================================================
+    // =====================================================
     // LOGO
-    // ==================================================
+    // =====================================================
 
     private void buildLogo() {
 
-        JPanel logoArea = new JPanel(null);
+        JPanel logoPanel =
+                new JPanel(null);
 
-        logoArea.setBounds(0,0,220,70);
+        logoPanel.setBounds(0,0,250,100);
 
-        logoArea.setBackground(BG_SIDEBAR);
+        logoPanel.setBackground(BG_SIDEBAR);
 
-        logoArea.setBorder(
-                BorderFactory.createMatteBorder(
-                        0,
-                        0,
-                        1,
-                        0,
-                        COLOR_BORDER
+        JPanel logoBox =
+                new JPanel() {
+
+                    @Override
+                    protected void paintComponent(Graphics g) {
+
+                        Graphics2D g2 =
+                                (Graphics2D) g;
+
+                        g2.setRenderingHint(
+                                RenderingHints.KEY_ANTIALIASING,
+                                RenderingHints.VALUE_ANTIALIAS_ON
+                        );
+
+                        g2.setColor(Color.WHITE);
+
+                        g2.fillRoundRect(
+                                0,
+                                0,
+                                getWidth(),
+                                getHeight(),
+                                16,
+                                16
+                        );
+                    }
+                };
+
+        logoBox.setOpaque(false);
+
+        logoBox.setBounds(20,24,44,44);
+
+        logoBox.setLayout(new BorderLayout());
+
+        JLabel lblB =
+                new JLabel(
+                        "B",
+                        SwingConstants.CENTER
+                );
+
+        lblB.setFont(
+                new Font(
+                        "Segoe UI",
+                        Font.BOLD,
+                        24
                 )
         );
 
-        JPanel logoBox = new JPanel();
+        lblB.setForeground(Color.BLACK);
 
-        logoBox.setBackground(new Color(18,18,18));
+        logoBox.add(lblB);
 
-        logoBox.setBounds(16,13,36,36);
+        JLabel brand =
+                new JLabel("BarberPro");
 
-        JLabel logoLetter =
-                new JLabel("B");
+        brand.setForeground(Color.WHITE);
 
-        logoLetter.setForeground(Color.WHITE);
-
-        logoLetter.setFont(
+        brand.setFont(
                 new Font(
-                        "SansSerif",
+                        "Segoe UI",
                         Font.BOLD,
                         18
                 )
         );
 
-        logoBox.add(logoLetter);
+        brand.setBounds(76,24,140,22);
 
-        JLabel brandName =
-                new JLabel("BarberPro");
-
-        brandName.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.BOLD,
-                        15
-                )
-        );
-
-        brandName.setBounds(62,14,140,18);
-
-        JLabel brandSub =
-                new JLabel("Management System");
-
-        brandSub.setForeground(COLOR_MUTED);
-
-        brandSub.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.PLAIN,
-                        10
-                )
-        );
-
-        brandSub.setBounds(62,34,140,15);
-
-        logoArea.add(logoBox);
-
-        logoArea.add(brandName);
-
-        logoArea.add(brandSub);
-
-        add(logoArea);
-    }
-
-    // ==================================================
-    // ROLE INFO
-    // ==================================================
-
-    private void buildRoleInfo() {
-
-        JPanel roleArea = new JPanel(null);
-
-        roleArea.setBounds(0,70,220,70);
-
-        roleArea.setBackground(BG_SIDEBAR);
-
-        roleArea.setBorder(
-                BorderFactory.createMatteBorder(
-                        0,
-                        0,
-                        1,
-                        0,
-                        COLOR_BORDER
-                )
-        );
-
-        JLabel roleTitle =
-                new JLabel("ROLE LOGIN");
-
-        roleTitle.setForeground(COLOR_MUTED);
-
-        roleTitle.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.BOLD,
-                        10
-                )
-        );
-
-        roleTitle.setBounds(16,12,120,14);
-
-        JPanel roleBox = new JPanel(null);
-
-        roleBox.setBounds(10,30,200,30);
-
-        roleBox.setBackground(
-                new Color(248,248,245)
-        );
-
-        roleBox.setBorder(
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(
-                                COLOR_BORDER,
-                                1
-                        ),
-                        new EmptyBorder(0,10,0,10)
-                )
-        );
-
-        JLabel roleLabel =
+        JLabel sub =
                 new JLabel(
-                        SessionManager.getRole()
+                        "Management System"
                 );
 
-        roleLabel.setFont(
+        sub.setForeground(TEXT_SECTION);
+
+        sub.setFont(
                 new Font(
-                        "SansSerif",
+                        "Segoe UI",
                         Font.PLAIN,
-                        12
+                        11
                 )
         );
 
-        roleLabel.setBounds(15,5,150,20);
+        sub.setBounds(76,48,150,18);
 
-        roleBox.add(roleLabel);
+        logoPanel.add(logoBox);
 
-        roleArea.add(roleTitle);
+        logoPanel.add(brand);
 
-        roleArea.add(roleBox);
+        logoPanel.add(sub);
 
-        add(roleArea);
+        add(logoPanel);
     }
 
-    // ==================================================
+    // =====================================================
     // MENUS
-    // ==================================================
+    // =====================================================
 
     private void buildMenus() {
 
-        int yPos = 155;
-
-        // =========================================
-        // OWNER
-        // =========================================
+        int y = 120;
 
         if (SessionManager.isOwner()) {
 
-            yPos = addSection("UTAMA", yPos);
+            y = addSection("MENU UTAMA", y);
 
-            yPos = addMenuItem("Dashboard", yPos);
+            y = addMenuItem("Dashboard", y);
 
-            yPos = addSection("MASTER DATA", yPos);
+            y = addMenuItem("Data Barber", y);
 
-            yPos = addMenuItem("Data Barber", yPos);
+            y = addMenuItem("Data Layanan", y);
 
-            yPos = addMenuItem("Data Layanan", yPos);
+            y = addMenuItem("Data Pelanggan", y);
 
-            yPos = addMenuItem("Data Pelanggan", yPos);
+            y = addMenuItem("Kelola User", y);
 
-            yPos = addMenuItem("Kelola User", yPos);
+            y = addMenuItem("Riwayat Transaksi", y);
 
-            yPos = addSection("KEUANGAN", yPos);
+            y = addMenuItem("Laporan", y);
 
-            yPos = addMenuItem("Laporan", yPos);
+        } else if (SessionManager.isKasir()) {
 
-            yPos = addMenuItem("Riwayat Transaksi", yPos);
-        }
+            y = addSection("OPERASIONAL", y);
 
-        // =========================================
-        // KASIR
-        // =========================================
+            y = addMenuItem("Antrian Hari Ini", y);
 
-        else if (SessionManager.isKasir()) {
+            y = addMenuItem("Tambah Walk-in", y);
 
-            yPos = addSection("OPERASIONAL", yPos);
+            y = addMenuItem("Proses Bayar", y);
 
-            yPos = addMenuItem(
-                    "Antrian Hari Ini",
-                    yPos
-            );
+            y = addMenuItem("Riwayat Kasir", y);
 
-            yPos = addMenuItem(
-                    "Tambah Walk-in",
-                    yPos
-            );
+        } else if (SessionManager.isBarber()) {
 
-            yPos = addMenuItem(
-                    "Proses Bayar",
-                    yPos
-            );
+            y = addSection("BARBER", y);
 
-            yPos = addMenuItem(
-                    "Riwayat Kasir",
-                    yPos
-            );
-        }
+            y = addMenuItem("Dashboard", y);
 
-        // =========================================
-        // BARBER
-        // =========================================
-
-        else if (SessionManager.isBarber()) {
-
-            yPos = addSection("BARBER", yPos);
-
-            yPos = addMenuItem(
-                    "Dashboard",
-                    yPos
-            );
-
-            yPos = addMenuItem(
-                    "Antrian Saya",
-                    yPos
-            );
+            y = addMenuItem("Antrian Saya", y);
         }
     }
 
-    // ==================================================
-    // USER CARD
-    // ==================================================
+    // =====================================================
+    // SECTION
+    // =====================================================
 
-    private void buildUserCard() {
+    private int addSection(
+            String text,
+            int y
+    ) {
 
-        JPanel userCard = new JPanel(null);
+        JLabel lbl =
+                new JLabel(text);
 
-        userCard.setBounds(0,680,220,105);
+        lbl.setForeground(TEXT_SECTION);
 
-        userCard.setBackground(BG_SIDEBAR);
-
-        userCard.setBorder(
-                BorderFactory.createMatteBorder(
-                        1,
-                        0,
-                        0,
-                        0,
-                        COLOR_BORDER
+        lbl.setFont(
+                new Font(
+                        "Segoe UI",
+                        Font.BOLD,
+                        10
                 )
         );
 
-        // =====================================
-        // USER NAME
-        // =====================================
+        lbl.setBounds(22,y,200,18);
 
-        JLabel userName =
+        add(lbl);
+
+        return y + 28;
+    }
+
+    // =====================================================
+    // MENU ITEM
+    // =====================================================
+
+    private int addMenuItem(
+            String text,
+            int y
+    ) {
+
+        boolean active =
+                text.equals(activeMenu);
+
+        JPanel item =
+                new JPanel() {
+
+                    @Override
+                    protected void paintComponent(Graphics g) {
+
+                        Graphics2D g2 =
+                                (Graphics2D) g;
+
+                        g2.setRenderingHint(
+                                RenderingHints.KEY_ANTIALIASING,
+                                RenderingHints.VALUE_ANTIALIAS_ON
+                        );
+
+                        if (active) {
+
+                            g2.setColor(BG_ACTIVE);
+
+                            g2.fillRoundRect(
+                                    0,
+                                    0,
+                                    getWidth(),
+                                    getHeight(),
+                                    16,
+                                    16
+                            );
+
+                        } else if (
+                                getClientProperty("hover")
+                                        != null
+                        ) {
+
+                            g2.setColor(BG_HOVER);
+
+                            g2.fillRoundRect(
+                                    0,
+                                    0,
+                                    getWidth(),
+                                    getHeight(),
+                                    16,
+                                    16
+                            );
+                        }
+                    }
+                };
+
+        item.setOpaque(false);
+
+        item.setLayout(null);
+
+        item.setBounds(14,y,222,46);
+
+        // SVG ICON
+
+        FlatSVGIcon iconSvg =
+                new FlatSVGIcon(
+                        getClass().getResource(
+                                "/" + ICONS.get(text)
+                        )
+                );
+
+        iconSvg.setColorFilter(
+                new FlatSVGIcon.ColorFilter(
+                        c -> active
+                                ? TEXT_ACTIVE
+                                : TEXT_NORMAL
+                )
+        );
+
+        iconSvg = iconSvg.derive(18,18);
+        JLabel icon =
+                new JLabel(iconSvg);
+
+        icon.setBounds(16,14,18,18);
+
+        icon.setForeground(
+                active
+                        ? TEXT_ACTIVE
+                        : TEXT_NORMAL
+        );
+
+        JLabel lbl =
+                new JLabel(text);
+
+        lbl.setBounds(48,12,150,20);
+
+        lbl.setFont(
+                new Font(
+                        "Segoe UI",
+                        active
+                                ? Font.BOLD
+                                : Font.PLAIN,
+                        14
+                )
+        );
+
+        lbl.setForeground(
+                active
+                        ? TEXT_ACTIVE
+                        : TEXT_NORMAL
+        );
+
+        item.add(icon);
+
+        item.add(lbl);
+
+        item.addMouseListener(
+                new MouseAdapter() {
+
+                    @Override
+                    public void mouseEntered(MouseEvent e) {
+
+                        if (!active) {
+
+                            item.putClientProperty(
+                                    "hover",
+                                    true
+                            );
+
+                            lbl.setForeground(
+                                    Color.WHITE
+                            );
+
+                            item.repaint();
+                        }
+                    }
+
+                    @Override
+                    public void mouseExited(MouseEvent e) {
+
+                        item.putClientProperty(
+                                "hover",
+                                null
+                        );
+
+                        lbl.setForeground(TEXT_NORMAL);
+
+                        item.repaint();
+                    }
+
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+
+                        activeMenu = text;
+
+                        dashboardFrame.navigateTo(text);
+
+                        buildSidebar();
+                    }
+                }
+        );
+
+        add(item);
+
+        return y + 54;
+    }
+
+    // =====================================================
+    // USER CARD
+    // =====================================================
+
+    private void buildUserCard() {
+
+        JPanel card =
+                new JPanel() {
+
+                    @Override
+                    protected void paintComponent(Graphics g) {
+
+                        Graphics2D g2 =
+                                (Graphics2D) g;
+
+                        g2.setRenderingHint(
+                                RenderingHints.KEY_ANTIALIASING,
+                                RenderingHints.VALUE_ANTIALIAS_ON
+                        );
+
+                        g2.setColor(USER_CARD);
+
+                        g2.fillRoundRect(
+                                0,
+                                0,
+                                getWidth(),
+                                getHeight(),
+                                20,
+                                20
+                        );
+                    }
+                };
+
+        card.setOpaque(false);
+
+        card.setLayout(null);
+
+        card.setBounds(14,665,222,110);
+
+        // AVATAR
+
+        JPanel avatar =
+                new JPanel() {
+
+                    @Override
+                    protected void paintComponent(Graphics g) {
+
+                        Graphics2D g2 =
+                                (Graphics2D) g;
+
+                        g2.setRenderingHint(
+                                RenderingHints.KEY_ANTIALIASING,
+                                RenderingHints.VALUE_ANTIALIAS_ON
+                        );
+
+                        g2.setColor(
+                                new Color(55,55,55)
+                        );
+
+                        g2.fillOval(
+                                0,
+                                0,
+                                getWidth(),
+                                getHeight()
+                        );
+                    }
+                };
+
+        avatar.setOpaque(false);
+
+        avatar.setBounds(16,16,42,42);
+
+        JLabel initial =
+                new JLabel(
+                        SessionManager
+                                .getNama()
+                                .substring(0,1)
+                                .toUpperCase(),
+                        SwingConstants.CENTER
+                );
+
+        initial.setForeground(Color.WHITE);
+
+        initial.setFont(
+                new Font(
+                        "Segoe UI",
+                        Font.BOLD,
+                        16
+                )
+        );
+
+        initial.setBounds(0,0,42,42);
+
+        avatar.setLayout(null);
+
+        avatar.add(initial);
+
+        JLabel name =
                 new JLabel(
                         SessionManager.getNama()
                 );
 
-        userName.setFont(
+        name.setForeground(Color.WHITE);
+
+        name.setFont(
                 new Font(
-                        "SansSerif",
+                        "Segoe UI",
                         Font.BOLD,
                         13
                 )
         );
 
-        userName.setBounds(20,12,180,16);
-
-        // =====================================
-        // ROLE
-        // =====================================
+        name.setBounds(68,18,120,18);
 
         JLabel role =
                 new JLabel(
                         SessionManager.getRole()
                 );
 
-        role.setForeground(COLOR_MUTED);
+        role.setForeground(TEXT_SECTION);
 
         role.setFont(
                 new Font(
-                        "SansSerif",
+                        "Segoe UI",
                         Font.PLAIN,
                         11
                 )
         );
 
-        role.setBounds(20,32,180,14);
+        role.setBounds(68,36,120,16);
 
-        // =====================================
-        // LOGOUT BUTTON
-        // =====================================
+        // LOGOUT
 
-        JButton btnLogout =
+        JButton logout =
                 new JButton("Logout");
 
-        btnLogout.setBounds(20,58,180,30);
+        logout.setBounds(16,68,190,32);
 
-        btnLogout.setFocusPainted(false);
+        logout.setForeground(Color.WHITE);
 
-        btnLogout.setBorderPainted(false);
-
-        btnLogout.setCursor(
-                new Cursor(Cursor.HAND_CURSOR)
+        logout.setBackground(
+                new Color(40,40,40)
         );
 
-        btnLogout.setBackground(
-                new Color(18,18,18)
-        );
+        logout.setFocusPainted(false);
 
-        btnLogout.setForeground(Color.WHITE);
+        logout.setBorderPainted(false);
 
-        btnLogout.setFont(
+        logout.setFont(
                 new Font(
-                        "SansSerif",
+                        "Segoe UI",
                         Font.BOLD,
                         12
                 )
         );
 
-        btnLogout.addActionListener(e -> {
+        logout.setCursor(
+                new Cursor(Cursor.HAND_CURSOR)
+        );
 
-            int confirm = JOptionPane.showConfirmDialog(
-                    this,
-                    "Yakin ingin logout?",
-                    "Logout",
-                    JOptionPane.YES_NO_OPTION
-            );
+        logout.setIcon(
+                new FlatSVGIcon(
+                        "icons/log-out.svg",
+                        14,
+                        14
+                )
+        );
 
-            if (confirm == JOptionPane.YES_OPTION) {
+        logout.addActionListener(e -> {
+
+            CustomConfirmDialog dialog =
+                    new CustomConfirmDialog(
+                            dashboardFrame,
+                            "Konfirmasi Logout",
+                            "Yakin ingin logout?"
+                    );
+
+            dialog.setVisible(true);
+
+            if (dialog.isConfirmed()) {
 
                 SessionManager.logout();
 
@@ -426,118 +665,14 @@ public class SidebarPanel extends JPanel {
             }
         });
 
-        // =====================================
-        // ADD COMPONENT
-        // =====================================
+        card.add(avatar);
 
-        userCard.add(userName);
+        card.add(name);
 
-        userCard.add(role);
+        card.add(role);
 
-        userCard.add(btnLogout);
+        card.add(logout);
 
-        add(userCard);
-    }
-    // ==================================================
-    // SECTION
-    // ==================================================
-
-    private int addSection(String title, int y) {
-
-        JLabel label = new JLabel(title);
-
-        label.setForeground(COLOR_MUTED);
-
-        label.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.BOLD,
-                        10
-                )
-        );
-
-        label.setBounds(16,y,180,14);
-
-        add(label);
-
-        return y + 22;
-    }
-
-    // ==================================================
-    // MENU ITEM
-    // ==================================================
-
-    private int addMenuItem(String text, int y) {
-
-        JPanel item = new JPanel(null);
-
-        item.setBounds(8,y,204,32);
-
-        boolean active =
-                text.equals(activeMenu);
-
-        item.setBackground(
-                active
-                        ? COLOR_ACTIVE_BG
-                        : BG_SIDEBAR
-        );
-
-        JLabel label = new JLabel(text);
-
-        label.setBounds(12,7,180,18);
-
-        label.setForeground(
-                active
-                        ? COLOR_ACTIVE
-                        : COLOR_TEXT
-        );
-
-        label.setFont(
-                new Font(
-                        "SansSerif",
-                        active
-                                ? Font.BOLD
-                                : Font.PLAIN,
-                        13
-                )
-        );
-
-        item.add(label);
-
-        item.addMouseListener(
-                new MouseAdapter() {
-
-                    @Override
-                    public void mouseClicked(
-                            MouseEvent e
-                    ) {
-
-                        activeMenu = text;
-
-                        dashboardFrame.navigateTo(text);
-
-                        refreshSidebar();
-                    }
-                }
-        );
-
-        add(item);
-
-        return y + 34;
-    }
-
-    // ==================================================
-    // REFRESH
-    // ==================================================
-
-    private void refreshSidebar() {
-
-        removeAll();
-
-        buildSidebar();
-
-        repaint();
-
-        revalidate();
+        add(card);
     }
 }

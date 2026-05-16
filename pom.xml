@@ -52,6 +52,12 @@
             <version>3.0.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.miglayout</groupId>
+            <artifactId>miglayout-swing</artifactId>
+            <version>11.3</version>
+        </dependency>
+
         <!-- JUnit — untuk testing (opsional tapi disarankan) -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

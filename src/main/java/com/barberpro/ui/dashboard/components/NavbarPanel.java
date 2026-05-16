@@ -1,94 +1,204 @@
 package com.barberpro.ui.dashboard.components;
 
+import com.barberpro.util.SessionManager;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import javax.swing.Timer;
 
 public class NavbarPanel extends JPanel {
 
-    private static final Color BG_NAVBAR   = Color.WHITE;
-    private static final Color COLOR_TEXT  = new Color(30, 30, 30);
-    private static final Color COLOR_MUTED = new Color(140, 140, 140);
-    private static final Color COLOR_BORDER = new Color(230, 230, 225);
+    // =====================================================
+    // COLORS
+    // =====================================================
 
-    private JLabel lblPageTitle;
+    private static final Color BG =
+            new Color(245,245,245);
+
+    private static final Color TEXT =
+            new Color(18,18,18);
+
+    private static final Color MUTED =
+            new Color(120,120,120);
+
+    private static final Color CARD =
+            Color.WHITE;
+
+    private static final Color BORDER =
+            new Color(230,230,230);
+
+    // =====================================================
+
+    private JLabel lblTitle;
     private JLabel lblDate;
     private JLabel lblTime;
 
     public NavbarPanel() {
-        setPreferredSize(new Dimension(0, 62));
-        setBackground(BG_NAVBAR);
-        setLayout(new BorderLayout());
-        setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, COLOR_BORDER));
 
-        buildNavbar();
+        setPreferredSize(
+                new Dimension(0,96)
+        );
+
+        setBackground(BG);
+
+        setLayout(new BorderLayout());
+
+        setBorder(
+                new EmptyBorder(16,28,16,28)
+        );
+
+
+
         startClock();
     }
 
-    private void buildNavbar() {
-        // LEFT - Page title (akan di-set dari luar)
-        lblPageTitle = new JLabel("Dashboard");
-        lblPageTitle.setForeground(COLOR_TEXT);
-        lblPageTitle.setFont(new Font("SansSerif", Font.BOLD, 20));
-        lblPageTitle.setBorder(new EmptyBorder(0, 28, 0, 0));
+    // =====================================================
+    // BADGE
+    // =====================================================
 
-        // RIGHT - Date & Time (sesuai desain)
-        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        rightPanel.setBackground(BG_NAVBAR);
-        rightPanel.setBorder(new EmptyBorder(0, 0, 0, 20));
+    private JLabel createBadge(String text) {
 
-        // Date badge
-        lblDate = new JLabel(getCurrentDate());
-        lblDate.setForeground(COLOR_TEXT);
-        lblDate.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        lblDate.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COLOR_BORDER, 1),
-                new EmptyBorder(6, 14, 6, 14)
-        ));
-        lblDate.setBackground(new Color(248, 248, 245));
-        lblDate.setOpaque(true);
+        JLabel lbl =
+                new JLabel(text);
 
-        // Time badge
-        lblTime = new JLabel(getCurrentTime());
-        lblTime.setForeground(COLOR_TEXT);
-        lblTime.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        lblTime.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COLOR_BORDER, 1),
-                new EmptyBorder(6, 14, 6, 14)
-        ));
-        lblTime.setBackground(new Color(248, 248, 245));
-        lblTime.setOpaque(true);
+        lbl.setForeground(TEXT);
 
-        rightPanel.add(lblDate);
-        rightPanel.add(lblTime);
+        lbl.setFont(
+                new Font(
+                        "Segoe UI",
+                        Font.PLAIN,
+                        13
+                )
+        );
 
-        add(lblPageTitle, BorderLayout.WEST);
-        add(rightPanel, BorderLayout.EAST);
+        lbl.setOpaque(true);
+
+        lbl.setBackground(CARD);
+
+        lbl.setBorder(
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(
+                                BORDER,
+                                1,
+                                true
+                        ),
+                        new EmptyBorder(
+                                12,
+                                16,
+                                12,
+                                16
+                        )
+                )
+        );
+
+        return lbl;
     }
 
+    // =====================================================
+    // CLOCK
+    // =====================================================
+
     private void startClock() {
-        Timer timer = new Timer(1000, e -> {
-            lblTime.setText(getCurrentTime());
-            lblDate.setText(getCurrentDate());
-        });
+
+        Timer timer =
+                new Timer(1000, e -> {
+
+                    lblDate.setText(
+                            getCurrentDate()
+                    );
+
+                    lblTime.setText(
+                            getCurrentTime()
+                    );
+                });
+
         timer.start();
     }
 
+    // =====================================================
+    // DATE
+    // =====================================================
+
     private String getCurrentDate() {
-        SimpleDateFormat sdf = new SimpleDateFormat("EEEE, d MMM yyyy", new Locale("id", "ID"));
+
+        SimpleDateFormat sdf =
+                new SimpleDateFormat(
+                        "EEEE, d MMM yyyy",
+                        new Locale("id", "ID")
+                );
+
         return sdf.format(new Date());
     }
+
+    // =====================================================
+    // TIME
+    // =====================================================
 
     private String getCurrentTime() {
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
+
+        SimpleDateFormat sdf =
+                new SimpleDateFormat("HH:mm");
+
         return sdf.format(new Date());
     }
 
+    // =====================================================
+    // TITLE
+    // =====================================================
+
     public void setPageTitle(String title) {
-        lblPageTitle.setText(title);
+
+        lblTitle.setText(title);
+    }
+
+    // =====================================================
+    // ROUNDED PANEL
+    // =====================================================
+
+    class RoundedPanel extends JPanel {
+
+        private final int radius;
+        private final Color color;
+
+        public RoundedPanel(
+                int radius,
+                Color color
+        ) {
+
+            this.radius = radius;
+            this.color = color;
+
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+
+            Graphics2D g2 =
+                    (Graphics2D) g.create();
+
+            g2.setRenderingHint(
+                    RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON
+            );
+
+            g2.setColor(color);
+
+            g2.fillRoundRect(
+                    0,
+                    0,
+                    getWidth(),
+                    getHeight(),
+                    radius,
+                    radius
+            );
+
+            g2.dispose();
+
+            super.paintComponent(g);
+        }
     }
 }

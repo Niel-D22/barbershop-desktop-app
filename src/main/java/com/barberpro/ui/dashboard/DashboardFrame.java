@@ -1,9 +1,8 @@
 package com.barberpro.ui.dashboard;
 
-import com.barberpro.ui.dashboard.components.NavbarPanel;
 import com.barberpro.ui.dashboard.components.SidebarPanel;
 
-// OWNER PAGES
+// OWNER
 import com.barberpro.ui.dashboard.pages.owner.BarberPage;
 import com.barberpro.ui.dashboard.pages.owner.DashboardPage;
 import com.barberpro.ui.dashboard.pages.owner.KelolaUserPage;
@@ -12,13 +11,13 @@ import com.barberpro.ui.dashboard.pages.owner.LayananPage;
 import com.barberpro.ui.dashboard.pages.owner.PelangganPage;
 import com.barberpro.ui.dashboard.pages.owner.RiwayatTransaksiPage;
 
-// KASIR PAGES
+// KASIR
 import com.barberpro.ui.dashboard.pages.kasir.AntrianPage;
 import com.barberpro.ui.dashboard.pages.kasir.ProsesBayarPage;
 import com.barberpro.ui.dashboard.pages.kasir.RiwayatKasirPage;
 import com.barberpro.ui.dashboard.pages.kasir.TambahWalkinPage;
 
-// BARBER PAGES
+// BARBER
 import com.barberpro.ui.dashboard.pages.barber.AntrianSayaPage;
 import com.barberpro.ui.dashboard.pages.barber.DashboardBarberPage;
 
@@ -30,8 +29,6 @@ import java.awt.*;
 public class DashboardFrame extends JFrame {
 
     private JPanel contentPanel;
-
-    private NavbarPanel navbarPanel;
 
     private SidebarPanel sidebarPanel;
 
@@ -69,25 +66,11 @@ public class DashboardFrame extends JFrame {
         sidebarPanel = new SidebarPanel(this);
 
         // =====================================
-        // RIGHT CONTAINER
-        // =====================================
-
-        JPanel rightContainer =
-                new JPanel(new BorderLayout());
-
-        rightContainer.setBackground(BG_CONTENT);
-
-        // =====================================
-        // NAVBAR
-        // =====================================
-
-        navbarPanel = new NavbarPanel();
-
-        // =====================================
         // CONTENT PANEL
         // =====================================
 
-        contentPanel = new JPanel(new BorderLayout());
+        contentPanel =
+                new JPanel(new BorderLayout());
 
         contentPanel.setBackground(BG_CONTENT);
 
@@ -95,25 +78,15 @@ public class DashboardFrame extends JFrame {
         // ADD COMPONENT
         // =====================================
 
-        rightContainer.add(
-                navbarPanel,
-                BorderLayout.NORTH
-        );
-
-        rightContainer.add(
-                contentPanel,
-                BorderLayout.CENTER
-        );
-
         add(sidebarPanel, BorderLayout.WEST);
 
-        add(rightContainer, BorderLayout.CENTER);
+        add(contentPanel, BorderLayout.CENTER);
 
         setVisible(true);
     }
 
     // ==================================================
-    // LOAD DEFAULT PAGE BERDASARKAN ROLE
+    // LOAD DEFAULT PAGE
     // ==================================================
 
     private void loadDefaultPage() {
@@ -128,7 +101,7 @@ public class DashboardFrame extends JFrame {
 
         } else if (SessionManager.isBarber()) {
 
-            navigateTo("Antrian Saya");
+            navigateTo("Dashboard");
         }
     }
 
@@ -153,13 +126,11 @@ public class DashboardFrame extends JFrame {
 
     public void navigateTo(String menu) {
 
-        navbarPanel.setPageTitle(menu);
-
         showPage(getPage(menu));
     }
 
     // ==================================================
-    // PAGE ROUTER
+    // ROUTER
     // ==================================================
 
     private JPanel getPage(String menu) {

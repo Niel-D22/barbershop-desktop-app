@@ -7,8 +7,11 @@ import java.awt.*;
 import java.awt.event.*;
 import com.barberpro.service.AuthService;
 
-public class LoginFrame extends JFrame {
 
+public class LoginFrame extends JFrame {
+    private JLabel lblError;
+    private JButton btnShowPassword;
+    private boolean passwordVisible = false;
     private JTextField txtUsername;
     private JPasswordField txtPassword;
     private JButton btnLogin;
@@ -29,7 +32,7 @@ public class LoginFrame extends JFrame {
     }
 
     private void initComponents() {
-        setTitle("BarberPro Login");
+        setTitle("Login BarberPro");
         setSize(1000, 620);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -85,18 +88,18 @@ public class LoginFrame extends JFrame {
         brandName.setFont(new Font("SansSerif", Font.BOLD, 20));
         brandName.setBounds(108, 63, 200, 28);
 
-        JLabel brandSub = new JLabel("Management System");
+        JLabel brandSub = new JLabel("Sistem Manajemen Barbershop");
         brandSub.setForeground(new Color(150, 150, 150));
         brandSub.setFont(new Font("SansSerif", Font.PLAIN, 13));
         brandSub.setBounds(108, 88, 200, 20);
 
         // Tagline besar
-        JLabel tagline1 = new JLabel("<html>Your style<br>matters.</html>");
+        JLabel tagline1 = new JLabel("<html>Kelola barbershop<br>dengan lebih mudah.</html>");
         tagline1.setForeground(Color.WHITE);
         tagline1.setFont(new Font("SansSerif", Font.BOLD, 40));
-        tagline1.setBounds(50, 200, 380, 120);
+        tagline1.setBounds(50, 200, 390, 140);
 
-        JLabel tagline2 = new JLabel("<html><font color='#999999'>Manage bookings, barber queues,<br>customers, and transactions faster.</font></html>");
+        JLabel tagline2 = new JLabel("<html><font color='#999999'>Kelola antrian, pelanggan,<br>booking, dan transaksi dalam satu sistem.</font></html>");
         tagline2.setFont(new Font("SansSerif", Font.PLAIN, 15));
         tagline2.setBounds(50, 340, 380, 60);
 
@@ -158,10 +161,16 @@ public class LoginFrame extends JFrame {
         txtUsername.setBackground(COLOR_INPUT);
         txtUsername.setForeground(COLOR_TEXT);
         txtUsername.setCaretColor(COLOR_TEXT);
-        txtUsername.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COLOR_BORDER, 1),
-                new EmptyBorder(10, 14, 10, 14)
-        ));
+        txtUsername.setBorder(
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(
+                                COLOR_BORDER,
+                                1,
+                                true
+                        ),
+                        new EmptyBorder(10,16,10,16)
+                )
+        );
         txtUsername.setFont(new Font("SansSerif", Font.PLAIN, 14));
 
         // PASSWORD LABEL
@@ -176,11 +185,38 @@ public class LoginFrame extends JFrame {
         txtPassword.setBackground(COLOR_INPUT);
         txtPassword.setForeground(COLOR_TEXT);
         txtPassword.setCaretColor(COLOR_TEXT);
-        txtPassword.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COLOR_BORDER, 1),
-                new EmptyBorder(10, 14, 10, 14)
-        ));
+        txtPassword.setBorder(
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(
+                                COLOR_BORDER,
+                                1,
+                                true
+                        ),
+                        new EmptyBorder(10,16,10,16)
+                )
+        );
         txtPassword.setFont(new Font("SansSerif", Font.PLAIN, 14));
+
+
+        lblError = new JLabel("");
+
+        lblError.setForeground(
+                new Color(220, 53, 69)
+        );
+
+        lblError.setFont(
+                new Font(
+                        "SansSerif",
+                        Font.PLAIN,
+                        12
+                )
+        );
+
+        lblError.setBounds(80, 360, 340, 18);
+
+        rightPanel.add(lblError);
+
+
 
         // LOGIN BUTTON
         btnLogin = new JButton("Masuk") {
@@ -189,11 +225,11 @@ public class LoginFrame extends JFrame {
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(getModel().isPressed() ? new Color(40, 40, 40) : COLOR_PRIMARY);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
                 super.paintComponent(g);
             }
         };
-        btnLogin.setBounds(80, 375, 340, 46);
+        btnLogin.setBounds(80, 390, 340, 50);
         btnLogin.setBackground(COLOR_PRIMARY);
         btnLogin.setForeground(Color.WHITE);
         btnLogin.setFocusPainted(false);
@@ -202,6 +238,16 @@ public class LoginFrame extends JFrame {
         btnLogin.setFont(new Font("SansSerif", Font.BOLD, 14));
         btnLogin.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnLogin.setOpaque(false);
+        btnLogin.addMouseListener(new MouseAdapter() {
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+
+                btnLogin.setCursor(
+                        new Cursor(Cursor.HAND_CURSOR)
+                );
+            }
+        });
 
         // Enter key support
         txtPassword.addKeyListener(new KeyAdapter() {
@@ -225,7 +271,58 @@ public class LoginFrame extends JFrame {
         rightPanel.add(lblUsername);
         rightPanel.add(txtUsername);
         rightPanel.add(lblPassword);
-        rightPanel.add(txtPassword);
+        JPanel passwordPanel = new JPanel(null);
+
+        passwordPanel.setBounds(80, 307, 340, 44);
+
+        passwordPanel.setBackground(COLOR_INPUT);
+
+        passwordPanel.setBorder(
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(
+                                COLOR_BORDER,
+                                1,
+                                true
+                        ),
+                        new EmptyBorder(0,0,0,0)
+                )
+        );
+
+        txtPassword.setBounds(12, 0, 270, 44);
+
+        txtPassword.setBorder(null);
+
+        txtPassword.setBackground(COLOR_INPUT);
+
+        txtPassword.setFont(
+                new Font("SansSerif", Font.PLAIN, 14)
+        );
+
+        btnShowPassword = new JButton("👁");
+
+        btnShowPassword.setBounds(290, 7, 40, 30);
+
+        btnShowPassword.setFocusPainted(false);
+
+        btnShowPassword.setBorderPainted(false);
+
+        btnShowPassword.setContentAreaFilled(false);
+
+        btnShowPassword.setCursor(
+                new Cursor(Cursor.HAND_CURSOR)
+        );
+
+        btnShowPassword.setFont(
+                new Font("SansSerif", Font.PLAIN, 14)
+        );
+
+        btnShowPassword.addActionListener(e -> togglePassword());
+
+        passwordPanel.add(txtPassword);
+
+        passwordPanel.add(btnShowPassword);
+
+        rightPanel.add(passwordPanel);
         rightPanel.add(btnLogin);
         rightPanel.add(footer);
 
@@ -237,24 +334,76 @@ public class LoginFrame extends JFrame {
     }
 
     private void login() {
-        String username = txtUsername.getText().trim();
-        // PENTING: gunakan new String() agar encoding benar
-        String password = new String(txtPassword.getPassword());
 
-        if (username.isEmpty() || password.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Username dan password wajib diisi!");
+        lblError.setText("");
+
+        String username =
+                txtUsername.getText().trim();
+
+        String password =
+                new String(
+                        txtPassword.getPassword()
+                );
+
+        // VALIDASI KOSONG
+
+        if (username.isEmpty()
+                || password.isEmpty()) {
+
+            lblError.setText(
+                    "Username dan password wajib diisi"
+            );
+
             return;
         }
 
-        AuthService authService = new AuthService();
-        boolean success = authService.login(username, password);
+        AuthService authService =
+                new AuthService();
+
+        boolean success =
+                authService.login(
+                        username,
+                        password
+                );
+
+        // LOGIN BERHASIL
 
         if (success) {
+
             dispose();
+
             new DashboardFrame();
-        } else {
-            JOptionPane.showMessageDialog(this, "Username atau password salah!");
+
+        }
+
+        // LOGIN GAGAL
+
+        else {
+
+            lblError.setText(
+                    "Username atau password salah"
+            );
+
             txtPassword.setText("");
+        }
+    }
+
+
+    private void togglePassword() {
+
+        passwordVisible = !passwordVisible;
+
+        if (passwordVisible) {
+
+            txtPassword.setEchoChar((char) 0);
+
+            btnShowPassword.setText("🙈");
+
+        } else {
+
+            txtPassword.setEchoChar('•');
+
+            btnShowPassword.setText("👁");
         }
     }
 }

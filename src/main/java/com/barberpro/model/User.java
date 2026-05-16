@@ -2,21 +2,37 @@ package com.barberpro.model;
 
 public abstract class User {
 
+    // =====================================================
+    // ATTRIBUTES
+    // =====================================================
+
     private int idUser;
+
     private String username;
+
     private String passwordHash;
+
     private String role;
+
     private String nama;
+
     private boolean aktif;
 
-    public User() {}
+    // =====================================================
+    // CONSTRUCTOR
+    // =====================================================
 
-    public User(int idUser,
-                String username,
-                String passwordHash,
-                String role,
-                String nama,
-                boolean aktif) {
+    public User() {
+    }
+
+    public User(
+            int idUser,
+            String username,
+            String passwordHash,
+            String role,
+            String nama,
+            boolean aktif
+    ) {
 
         this.idUser = idUser;
         this.username = username;
@@ -26,7 +42,9 @@ public abstract class User {
         this.aktif = aktif;
     }
 
+    // =====================================================
     // GETTERS
+    // =====================================================
 
     public int getIdUser() {
         return idUser;
@@ -52,7 +70,9 @@ public abstract class User {
         return aktif;
     }
 
+    // =====================================================
     // SETTERS
+    // =====================================================
 
     public void setIdUser(int idUser) {
         this.idUser = idUser;
@@ -78,11 +98,61 @@ public abstract class User {
         this.aktif = aktif;
     }
 
+    // =====================================================
+    // ROLE CHECK
+    // =====================================================
+
+    public boolean isOwner() {
+
+        return role != null
+                && role.equalsIgnoreCase("OWNER");
+    }
+
+    public boolean isKasir() {
+
+        return role != null
+                && role.equalsIgnoreCase("KASIR");
+    }
+
+    public boolean isBarber() {
+
+        return role != null
+                && role.equalsIgnoreCase("BARBER");
+    }
+
+    // =====================================================
+    // STATUS CHECK
+    // =====================================================
+
+    public String getStatusText() {
+
+        return aktif
+                ? "Aktif"
+                : "Nonaktif";
+    }
+
+    // =====================================================
+    // DISPLAY
+    // =====================================================
+
+    public String getDisplayName() {
+
+        return nama + " (" + role + ")";
+    }
+
+    // =====================================================
     // POLYMORPHISM
+    // =====================================================
+
     public abstract String getDashboardName();
+
+    // =====================================================
+    // toString
+    // =====================================================
 
     @Override
     public String toString() {
-        return nama + " (" + role + ")";
+
+        return getDisplayName();
     }
 }
