@@ -1,5 +1,7 @@
 package com.barberpro.ui.dashboard.pages.barber;
 
+import com.barberpro.model.BookingQueueItem;
+import com.barberpro.service.BookingService;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 
 import javax.swing.*;
@@ -7,6 +9,11 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Locale;
 
 public class AntrianSayaPage extends JPanel {
 
@@ -25,15 +32,28 @@ public class AntrianSayaPage extends JPanel {
     private final Color GREEN_BG = new Color(240, 253, 244);
     private final Color GREEN = new Color(22, 163, 74);
 
+    private final Color RED_BG = new Color(254, 242, 242);
+    private final Color RED = new Color(239, 68, 68);
+
     private final Color DARK = new Color(18, 18, 18);
+
+    private final BookingService bookingService = new BookingService();
+
+    private JPanel rowsPanel;
+    private JPanel filterPanel;
+
+    private String activeFilter = "Semua";
 
     public AntrianSayaPage() {
         setLayout(new BorderLayout());
         setBackground(BG);
         buildUI();
+        loadData();
     }
 
     private void buildUI() {
+        removeAll();
+
         JPanel content = new JPanel(new BorderLayout(0, 20));
         content.setOpaque(false);
         content.setBorder(new EmptyBorder(24, 24, 22, 24));
@@ -50,6 +70,9 @@ public class AntrianSayaPage extends JPanel {
         scroll.getVerticalScrollBar().setUnitIncrement(18);
 
         add(scroll, BorderLayout.CENTER);
+
+        revalidate();
+        repaint();
     }
 
     // =========================================================
@@ -79,13 +102,26 @@ public class AntrianSayaPage extends JPanel {
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         right.setOpaque(false);
 
-        right.add(dateCard("icons/Barber/clock-3.svg", "Jumat, 15 Mei 2026", 160));
-        right.add(dateCard("icons/Barber/clock-3.svg", "21:35", 90));
+        right.add(dateCard("icons/KasirPOS/calendar.svg", getTodayText(), 170));
+        right.add(dateCard("icons/Barber/clock-3.svg", getTimeText(), 90));
 
         header.add(left, BorderLayout.WEST);
         header.add(right, BorderLayout.EAST);
 
         return header;
+    }
+
+    private String getTodayText() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(
+                "EEEE, dd MMMM yyyy",
+                new Locale("id", "ID")
+        );
+
+        return LocalDate.now().format(formatter);
+    }
+
+    private String getTimeText() {
+        return LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
     }
 
     // =========================================================
@@ -102,7 +138,12 @@ public class AntrianSayaPage extends JPanel {
         JPanel center = new JPanel(new BorderLayout(0, 0));
         center.setOpaque(false);
         center.add(createTableHeader(), BorderLayout.NORTH);
-        center.add(createRows(), BorderLayout.CENTER);
+
+        rowsPanel = new JPanel();
+        rowsPanel.setOpaque(false);
+        rowsPanel.setLayout(new BoxLayout(rowsPanel, BoxLayout.Y_AXIS));
+
+        center.add(rowsPanel, BorderLayout.CENTER);
 
         card.add(center, BorderLayout.CENTER);
         card.add(createInfoCard(), BorderLayout.SOUTH);
@@ -111,23 +152,119 @@ public class AntrianSayaPage extends JPanel {
     }
 
     // =========================================================
-    // FILTER
+    // LOAD DATA
     // =========================================================
 
-    private JPanel createFilterSection() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        panel.setOpaque(false);
-        panel.setBorder(new EmptyBorder(0, 0, 14, 0));
+    private void loadData() {
+        if (rowsPanel == null) return;
 
-        panel.add(createFilterButton("Semua", true));
-        panel.add(createFilterButton("Menunggu", false));
-        panel.add(createFilterButton("Diproses", false));
-        panel.add(createFilterButton("Selesai Hari Ini", false));
+        rowsPanel.removeAll();
+
+        JLabel loading = new JLabel("Memuat data antrian...");
+        loading.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        loading.setForeground(MUTED);
+        loading.setBorder(new EmptyBorder(20, 10, 20, 10));
+
+        rowsPanel.add(loading);
+        rowsPanel.revalidate();
+        rowsPanel.repaint();
+
+        SwingWorker<List<BookingQueueItem>, Void> worker =
+                new SwingWorker<>() {
+
+                    @Override
+                    protected List<BookingQueueItem> doInBackground() {
+                        return bookingService.getAntrianBarberHariIni(activeFilter);
+                    }
+
+                    @Override
+                    protected void done() {
+                        try {
+                            List<BookingQueueItem> data = get();
+                            renderRows(data);
+                        } catch (Exception e) {
+                            renderError(e.getMessage());
+                        }
+                    }
+                };
+
+        worker.execute();
+    }
+
+    private void renderRows(List<BookingQueueItem> data) {
+        rowsPanel.removeAll();
+
+        if (data == null || data.isEmpty()) {
+            rowsPanel.add(createEmptyState());
+        } else {
+            for (BookingQueueItem item : data) {
+                rowsPanel.add(createQueueRow(item));
+            }
+        }
+
+        rowsPanel.revalidate();
+        rowsPanel.repaint();
+    }
+
+    private void renderError(String message) {
+        rowsPanel.removeAll();
+
+        JLabel error = new JLabel("Gagal memuat data: " + message);
+        error.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        error.setForeground(RED);
+        error.setBorder(new EmptyBorder(20, 10, 20, 10));
+
+        rowsPanel.add(error);
+        rowsPanel.revalidate();
+        rowsPanel.repaint();
+    }
+
+    private JPanel createEmptyState() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setOpaque(false);
+        panel.setPreferredSize(new Dimension(100, 120));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+
+        JLabel text = new JLabel("Belum ada antrian untuk filter ini.");
+        text.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        text.setForeground(MUTED);
+
+        panel.add(text);
 
         return panel;
     }
 
-    private JPanel createFilterButton(String text, boolean active) {
+    // =========================================================
+    // FILTER
+    // =========================================================
+
+    private JPanel createFilterSection() {
+        filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        filterPanel.setOpaque(false);
+        filterPanel.setBorder(new EmptyBorder(0, 0, 14, 0));
+
+        refreshFilterButtons();
+
+        return filterPanel;
+    }
+
+    private void refreshFilterButtons() {
+        if (filterPanel == null) return;
+
+        filterPanel.removeAll();
+
+        filterPanel.add(createFilterButton("Semua"));
+        filterPanel.add(createFilterButton("Menunggu"));
+        filterPanel.add(createFilterButton("Diproses"));
+        filterPanel.add(createFilterButton("Selesai Hari Ini"));
+
+        filterPanel.revalidate();
+        filterPanel.repaint();
+    }
+
+    private JPanel createFilterButton(String text) {
+        boolean active = text.equalsIgnoreCase(activeFilter);
+
         RoundedPanel button = new RoundedPanel(12);
         button.setBackground(active ? CARD : new Color(248, 248, 248));
         button.setRoundedBorder(active ? BLUE : BORDER, 1);
@@ -140,7 +277,20 @@ public class AntrianSayaPage extends JPanel {
         label.setForeground(active ? BLUE : new Color(70, 70, 70));
 
         button.add(label);
-        addHover(button);
+
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                activeFilter = text;
+                refreshFilterButtons();
+                loadData();
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            }
+        });
 
         return button;
     }
@@ -185,106 +335,10 @@ public class AntrianSayaPage extends JPanel {
     }
 
     // =========================================================
-    // ROWS
+    // ROW
     // =========================================================
 
-    private JPanel createRows() {
-        JPanel rows = new JPanel();
-        rows.setOpaque(false);
-        rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
-
-        rows.add(createQueueRow(
-                "A-06",
-                "#BKG-00126",
-                "Budi Santoso",
-                "0813-1234-5678",
-                "Haircut",
-                "Rp 70.000 • 30 menit",
-                "12:30",
-                "MENUNGGU",
-                "30 menit",
-                "Mulai",
-                true,
-                "icons/Barber/play.svg"
-        ));
-
-        rows.add(createQueueRow(
-                "A-02",
-                "#BKG-00124",
-                "Dewi Lestari",
-                "0812-685-6666",
-                "Haircut",
-                "Rp 70.000 • 30 menit",
-                "10:45",
-                "DIPROSES",
-                "30 menit",
-                "Selesai",
-                true,
-                "icons/Barber/check.svg"
-        ));
-
-        rows.add(createQueueRow(
-                "A-04",
-                "#BKG-00126",
-                "Siti Aisyah",
-                "0823-4444-7777",
-                "Haircut, Styling",
-                "Rp 110.000 • 60 menit",
-                "11:30",
-                "DIPROSES",
-                "60 menit",
-                "Selesai",
-                true,
-                "icons/Barber/check.svg"
-        ));
-
-        rows.add(createQueueRow(
-                "A-01",
-                "#BKG-00123",
-                "Rian Maulana",
-                "0821-0376-6432",
-                "Haircut, Hair Wash",
-                "Rp 100.000 • 60 menit",
-                "10:30",
-                "SELESAI",
-                "60 menit",
-                "Selesai",
-                false,
-                "icons/Barber/check.svg"
-        ));
-
-        rows.add(createQueueRow(
-                "A-03",
-                "#BKG-00125",
-                "Agung Setiawan",
-                "0821-0376-6432",
-                "Hair Wash",
-                "Rp 30.000 • 20 menit",
-                "11:00",
-                "SELESAI",
-                "20 menit",
-                "Selesai",
-                false,
-                "icons/Barber/check.svg"
-        ));
-
-        return rows;
-    }
-
-    private JPanel createQueueRow(
-            String queueNo,
-            String bookingCode,
-            String customer,
-            String phone,
-            String service,
-            String detail,
-            String time,
-            String status,
-            String duration,
-            String actionText,
-            boolean actionEnabled,
-            String actionIcon
-    ) {
+    private JPanel createQueueRow(BookingQueueItem item) {
         JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(false);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 78));
@@ -295,15 +349,15 @@ public class AntrianSayaPage extends JPanel {
                 )
         );
 
-        addRowCell(row, queueNumber(queueNo, bookingCode), 0, 0.13);
-        addRowCell(row, customerCell(customer, phone), 1, 0.23);
-        addRowCell(row, serviceCell(service, detail), 2, 0.27);
-        addRowCell(row, simpleText(time, true), 3, 0.10);
-        addRowCell(row, statusBadge(status), 4, 0.14);
-        addRowCell(row, simpleText(duration, false), 5, 0.10);
-        addRowCell(row, actionButton(actionText, actionIcon, actionEnabled), 6, 0.13);
+        addRowCell(row, queueNumber(item.getNoAntrianText(), item.getKodeBookingText()), 0, 0.13);
+        addRowCell(row, customerCell(item.getNamaPelanggan(), item.getNoHpPelanggan()), 1, 0.23);
+        addRowCell(row, serviceCell(item.getNamaLayanan(), item.getDetailLayananText()), 2, 0.27);
+        addRowCell(row, simpleText(item.getJamText(), true), 3, 0.10);
+        addRowCell(row, statusBadge(item.getStatusUiText()), 4, 0.14);
+        addRowCell(row, simpleText(item.getDurasiText(), false), 5, 0.10);
+        addRowCell(row, actionButton(item), 6, 0.13);
 
-        addHover(row);
+        addRowHover(row);
 
         return row;
     }
@@ -442,6 +496,9 @@ public class AntrianSayaPage extends JPanel {
         } else if (status.equalsIgnoreCase("DIPROSES")) {
             bg = BLUE_BG;
             fg = BLUE;
+        } else if (status.equalsIgnoreCase("BATAL")) {
+            bg = RED_BG;
+            fg = RED;
         } else {
             bg = GREEN_BG;
             fg = GREEN;
@@ -452,7 +509,7 @@ public class AntrianSayaPage extends JPanel {
 
         RoundedPanel badge = new RoundedPanel(99);
         badge.setBackground(bg);
-        badge.setPreferredSize(new Dimension(status.equals("MENUNGGU") ? 96 : 86, 26));
+        badge.setPreferredSize(new Dimension(status.length() > 8 ? 96 : 86, 26));
         badge.setLayout(new GridBagLayout());
 
         JLabel label = new JLabel(status);
@@ -469,7 +526,25 @@ public class AntrianSayaPage extends JPanel {
     // ACTION BUTTON
     // =========================================================
 
-    private JPanel actionButton(String text, String iconPath, boolean enabled) {
+    private JPanel actionButton(BookingQueueItem item) {
+        String text;
+        String iconPath;
+        boolean enabled;
+
+        if (item.canMulai()) {
+            text = "Mulai";
+            iconPath = "icons/Barber/play.svg";
+            enabled = true;
+        } else if (item.canSelesai()) {
+            text = "Selesai";
+            iconPath = "icons/Barber/check.svg";
+            enabled = true;
+        } else {
+            text = "Selesai";
+            iconPath = "icons/Barber/check.svg";
+            enabled = false;
+        }
+
         JPanel wrapper = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 10));
         wrapper.setOpaque(false);
 
@@ -494,12 +569,62 @@ public class AntrianSayaPage extends JPanel {
         button.add(label);
 
         if (enabled) {
-            addHover(button);
+            button.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    handleAction(item);
+                }
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    button.setBackground(new Color(35, 35, 35));
+                    button.repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    button.setBackground(DARK);
+                    button.repaint();
+                }
+            });
         }
 
         wrapper.add(button);
 
         return wrapper;
+    }
+
+    private void handleAction(BookingQueueItem item) {
+        boolean success;
+
+        try {
+            if (item.canMulai()) {
+                success = bookingService.mulaiLayanan(item.getIdBooking());
+            } else if (item.canSelesai()) {
+                success = bookingService.selesaiLayanan(item.getIdBooking());
+            } else {
+                return;
+            }
+
+            if (success) {
+                loadData();
+            } else {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Status booking gagal diubah. Kemungkinan status sudah berubah.",
+                        "Gagal",
+                        JOptionPane.WARNING_MESSAGE
+                );
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
     }
 
     // =========================================================
@@ -517,8 +642,8 @@ public class AntrianSayaPage extends JPanel {
 
         JLabel text = new JLabel(
                 "<html>"
-                        + "Mulai layanan akan mengubah status menjadi DIPROSES dan mencatat waktu mulai.<br>"
-                        + "Selesaikan layanan akan mengubah status menjadi MENUNGGU_PEMBAYARAN dan mencatat waktu selesai."
+                        + "Mulai cukur akan mengubah status menjadi DICUKUR dan mencatat waktu mulai.<br>"
+                        + "Selesai cukur akan mengubah status menjadi MENUNGGU_PEMBAYARAN dan mencatat waktu selesai."
                         + "</html>"
         );
 
@@ -567,18 +692,11 @@ public class AntrianSayaPage extends JPanel {
         return label;
     }
 
-    private void addHover(JComponent component) {
+    private void addRowHover(JComponent component) {
         component.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
                 component.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                component.setBackground(new Color(250, 250, 250));
-                component.repaint();
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                component.repaint();
             }
         });
     }

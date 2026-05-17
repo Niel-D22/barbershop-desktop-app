@@ -1,11 +1,24 @@
 package com.barberpro.ui.dashboard.pages.kasir;
 
+import com.barberpro.model.RiwayatKasirItem;
+import com.barberpro.model.RiwayatKasirStats;
+import com.barberpro.service.RiwayatKasirService;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Locale;
 
 public class RiwayatKasirPage extends JPanel {
 
@@ -22,13 +35,37 @@ public class RiwayatKasirPage extends JPanel {
     private final Color RED_BG = new Color(254, 242, 242);
     private final Color RED = new Color(239, 68, 68);
 
+    private final RiwayatKasirService riwayatKasirService = new RiwayatKasirService();
+
+    private JTextField searchField;
+    private JComboBox<String> metodeCombo;
+    private JComboBox<String> statusCombo;
+
+    private JPanel statsPanel;
+    private JPanel rowsPanel;
+    private JPanel paginationPanel;
+
+    private JLabel infoPaginationLabel;
+
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalData = 0;
+
+    private String keyword = "";
+    private String metodeFilter = "Semua Metode";
+    private String statusFilter = "Semua Status";
+
     public RiwayatKasirPage() {
         setLayout(new BorderLayout());
         setBackground(BG);
+
         buildUI();
+        loadData();
     }
 
     private void buildUI() {
+        removeAll();
+
         JPanel content = new JPanel(new BorderLayout(0, 26));
         content.setOpaque(false);
         content.setBorder(new EmptyBorder(30, 30, 28, 30));
@@ -45,6 +82,9 @@ public class RiwayatKasirPage extends JPanel {
         scroll.getVerticalScrollBar().setUnitIncrement(18);
 
         add(scroll, BorderLayout.CENTER);
+
+        revalidate();
+        repaint();
     }
 
     private JPanel createHeader() {
@@ -69,8 +109,8 @@ public class RiwayatKasirPage extends JPanel {
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 14, 0));
         right.setOpaque(false);
-        right.add(dateCard("icons/Dashboard/calendar.svg", "Jumat, 15 Mei 2026", 180));
-        right.add(dateCard("icons/KasirPOS/clock-3.svg", "21:35", 110));
+        right.add(dateCard("icons/Dashboard/calendar.svg", getTodayText(), 180));
+        right.add(dateCard("icons/KasirPOS/clock-3.svg", getTimeText(), 110));
 
         header.add(left, BorderLayout.WEST);
         header.add(right, BorderLayout.EAST);
@@ -82,54 +122,384 @@ public class RiwayatKasirPage extends JPanel {
         JPanel body = new JPanel(new BorderLayout(0, 24));
         body.setOpaque(false);
 
-        body.add(createStats(), BorderLayout.NORTH);
+        statsPanel = new JPanel(new GridLayout(1, 4, 18, 0));
+        statsPanel.setOpaque(false);
+        statsPanel.setPreferredSize(new Dimension(100, 125));
+
+        body.add(statsPanel, BorderLayout.NORTH);
         body.add(createTableCard(), BorderLayout.CENTER);
 
         return body;
     }
 
-    private JPanel createStats() {
-        JPanel stats = new JPanel(new GridLayout(1, 4, 18, 0));
-        stats.setOpaque(false);
-        stats.setPreferredSize(new Dimension(100, 125));
+    private JPanel createTableCard() {
+        ShadowPanel card = new ShadowPanel(26);
+        card.setLayout(new BorderLayout(0, 18));
+        card.setBorder(new EmptyBorder(22, 22, 22, 22));
 
-        stats.add(statCard(
+        card.add(createFilterArea(), BorderLayout.NORTH);
+
+        JPanel middle = new JPanel(new BorderLayout(0, 0));
+        middle.setOpaque(false);
+        middle.add(createTableHeader(), BorderLayout.NORTH);
+
+        rowsPanel = new JPanel();
+        rowsPanel.setOpaque(false);
+        rowsPanel.setLayout(new BoxLayout(rowsPanel, BoxLayout.Y_AXIS));
+
+        middle.add(rowsPanel, BorderLayout.CENTER);
+
+        paginationPanel = new JPanel(new BorderLayout());
+        paginationPanel.setOpaque(false);
+
+        card.add(middle, BorderLayout.CENTER);
+        card.add(paginationPanel, BorderLayout.SOUTH);
+
+        return card;
+    }
+
+    private JPanel createFilterArea() {
+        JPanel panel = new JPanel(new MigLayout(
+                "insets 0, gap 12, fillx",
+                "[grow, fill][150!, fill][150!, fill][120!, fill]",
+                "[46!]"
+        ));
+
+        panel.setOpaque(false);
+
+        panel.add(searchBox(), "grow");
+
+        metodeCombo = new JComboBox<>(
+                new String[]{
+                        "Semua Metode",
+                        "Tunai",
+                        "QRIS",
+                        "TRANSFER"
+                }
+        );
+
+        statusCombo = new JComboBox<>(
+                new String[]{
+                        "Semua Status",
+                        "Selesai",
+                        "Dibatalkan"
+                }
+        );
+
+        styleCombo(metodeCombo);
+        styleCombo(statusCombo);
+
+        metodeCombo.addActionListener(e -> {
+            metodeFilter = String.valueOf(metodeCombo.getSelectedItem());
+            currentPage = 1;
+            loadData();
+        });
+
+        statusCombo.addActionListener(e -> {
+            statusFilter = String.valueOf(statusCombo.getSelectedItem());
+            currentPage = 1;
+            loadData();
+        });
+
+        panel.add(wrapCombo(metodeCombo), "grow");
+        panel.add(wrapCombo(statusCombo), "grow");
+        panel.add(resetBox(), "grow");
+
+        return panel;
+    }
+
+    private JPanel createTableHeader() {
+        JPanel header = new JPanel(new MigLayout(
+                "insets 18 0 12 0, gap 0, fillx",
+                "[grow 9, fill][grow 13, fill][grow 18, fill][grow 18, fill][grow 9, fill][grow 10, fill][grow 10, fill][grow 10, fill][grow 5, fill]",
+                "[30!]"
+        ));
+
+        header.setOpaque(false);
+        header.setBorder(
+                BorderFactory.createMatteBorder(
+                        0,
+                        0,
+                        1,
+                        0,
+                        new Color(238, 238, 238)
+                )
+        );
+
+        header.add(headerText("No. Transaksi"), "growx");
+        header.add(headerText("Tanggal"), "growx");
+        header.add(headerText("Pelanggan"), "growx");
+        header.add(headerText("Layanan"), "growx");
+        header.add(headerText("Metode"), "growx");
+        header.add(headerText("Total"), "growx");
+        header.add(headerText("Status"), "growx");
+        header.add(headerText("Kasir"), "growx");
+        header.add(headerText("Aksi"), "growx");
+
+        return header;
+    }
+
+    private void loadData() {
+        SwingWorker<Void, Void> worker = new SwingWorker<>() {
+
+            private RiwayatKasirStats stats;
+            private List<RiwayatKasirItem> items;
+            private int count;
+
+            @Override
+            protected Void doInBackground() throws Exception {
+                stats = riwayatKasirService.getStats();
+
+                count = riwayatKasirService.countRiwayat(
+                        keyword,
+                        metodeFilter,
+                        statusFilter
+                );
+
+                items = riwayatKasirService.getRiwayat(
+                        keyword,
+                        metodeFilter,
+                        statusFilter,
+                        currentPage,
+                        pageSize
+                );
+
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get();
+
+                    totalData = count;
+
+                    renderStats(stats);
+                    renderRows(items);
+                    renderPagination();
+
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(
+                            RiwayatKasirPage.this,
+                            "Gagal memuat riwayat kasir: " + e.getMessage(),
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                }
+            }
+        };
+
+        worker.execute();
+    }
+
+    private void renderStats(RiwayatKasirStats stats) {
+        statsPanel.removeAll();
+
+        statsPanel.add(statCard(
                 "icons/KasirPOS/receipt-text.svg",
                 new Color(239, 246, 255),
                 new Color(37, 99, 235),
                 "Total Transaksi",
-                "128",
+                String.valueOf(stats.getTotalTransaksi()),
                 "Semua transaksi"
         ));
 
-        stats.add(statCard(
+        statsPanel.add(statCard(
                 "icons/KasirPOS/wallet.svg",
                 new Color(240, 253, 244),
                 new Color(22, 163, 74),
                 "Total Pendapatan",
-                "Rp 18.750.000",
+                formatMoney(stats.getTotalPendapatan()),
                 "Semua pendapatan"
         ));
 
-        stats.add(statCard(
+        statsPanel.add(statCard(
                 "icons/KasirPOS/credit-card.svg",
                 new Color(255, 247, 237),
                 new Color(245, 158, 11),
                 "Rata-rata Transaksi",
-                "Rp 146.484",
+                formatMoney(stats.getRataRataTransaksi()),
                 "Per transaksi"
         ));
 
-        stats.add(statCard(
+        statsPanel.add(statCard(
                 "icons/KasirPOS/badge-check.svg",
                 new Color(245, 243, 255),
                 new Color(147, 51, 234),
                 "Transaksi Selesai",
-                "116",
-                "90,6% dari total"
+                String.valueOf(stats.getTransaksiSelesai()),
+                String.format(
+                        Locale.of("id", "ID"),
+                        "%.1f%% dari total",
+                        stats.getPersentaseSelesai()
+                )
         ));
 
-        return stats;
+        statsPanel.revalidate();
+        statsPanel.repaint();
+    }
+
+    private void renderRows(List<RiwayatKasirItem> items) {
+        rowsPanel.removeAll();
+
+        if (items == null || items.isEmpty()) {
+            rowsPanel.add(emptyRow());
+        } else {
+            for (RiwayatKasirItem item : items) {
+                rowsPanel.add(row(item));
+            }
+        }
+
+        rowsPanel.revalidate();
+        rowsPanel.repaint();
+    }
+
+    private JPanel row(RiwayatKasirItem item) {
+        JPanel row = new JPanel(new MigLayout(
+                "insets 8 0 8 0, gap 0, fillx",
+                "[grow 9, fill][grow 13, fill][grow 18, fill][grow 18, fill][grow 9, fill][grow 10, fill][grow 10, fill][grow 10, fill][grow 5, fill]",
+                "[50!]"
+        ));
+
+        row.setOpaque(false);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 66));
+
+        row.setBorder(
+                BorderFactory.createMatteBorder(
+                        0,
+                        0,
+                        1,
+                        0,
+                        new Color(238, 238, 238)
+                )
+        );
+
+        row.add(cell(item.getKodeTransaksi(), true), "growx");
+        row.add(cell(formatDateTime(item.getTanggalTransaksi()), false), "growx");
+        row.add(customerCell(item.getNamaPelanggan(), item.getNoHp()), "growx");
+        row.add(serviceCell(item.getNamaLayanan(), "1 layanan"), "growx");
+        row.add(methodBadge(item.getMetodeUi()), "growx");
+        row.add(cell(formatMoney(item.getTotal()), true), "growx");
+        row.add(statusBadge(item.getStatusUi()), "growx");
+        row.add(cell(item.getNamaKasir(), true), "growx");
+        row.add(actionCell(item), "growx");
+
+        return row;
+    }
+
+    private JPanel emptyRow() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setOpaque(false);
+        panel.setPreferredSize(new Dimension(100, 260));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
+
+        JLabel label = new JLabel("Belum ada data transaksi.");
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        label.setForeground(MUTED);
+
+        panel.add(label);
+
+        return panel;
+    }
+
+    private void renderPagination() {
+        paginationPanel.removeAll();
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
+        panel.setBorder(new EmptyBorder(18, 0, 0, 0));
+
+        int start = totalData == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+        int end = Math.min(currentPage * pageSize, totalData);
+        int totalPage = Math.max(1, (int) Math.ceil((double) totalData / pageSize));
+
+        infoPaginationLabel = new JLabel(
+                "Menampilkan " + start + " - " + end + " dari " + totalData + " transaksi"
+        );
+
+        infoPaginationLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        infoPaginationLabel.setForeground(MUTED);
+
+        JPanel pages = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        pages.setOpaque(false);
+
+        pages.add(pageButton("<", currentPage == 1, () -> {
+            if (currentPage > 1) {
+                currentPage--;
+                loadData();
+            }
+        }));
+
+        int maxButton = Math.min(totalPage, 5);
+
+        for (int i = 1; i <= maxButton; i++) {
+            int pageNumber = i;
+
+            pages.add(pageButton(
+                    String.valueOf(pageNumber),
+                    currentPage == pageNumber,
+                    () -> {
+                        currentPage = pageNumber;
+                        loadData();
+                    }
+            ));
+        }
+
+        if (totalPage > 5) {
+            pages.add(pageButton("...", true, () -> {}));
+
+            int lastPage = totalPage;
+
+            pages.add(pageButton(
+                    String.valueOf(lastPage),
+                    currentPage == lastPage,
+                    () -> {
+                        currentPage = lastPage;
+                        loadData();
+                    }
+            ));
+        }
+
+        pages.add(pageButton(">", currentPage == totalPage, () -> {
+            if (currentPage < totalPage) {
+                currentPage++;
+                loadData();
+            }
+        }));
+
+        JComboBox<String> pageSizeCombo = new JComboBox<>(
+                new String[]{
+                        "10 / halaman",
+                        "20 / halaman",
+                        "50 / halaman"
+                }
+        );
+
+        styleCombo(pageSizeCombo);
+
+        pageSizeCombo.addActionListener(e -> {
+            String selected = String.valueOf(pageSizeCombo.getSelectedItem());
+
+            if (selected.startsWith("20")) {
+                pageSize = 20;
+            } else if (selected.startsWith("50")) {
+                pageSize = 50;
+            } else {
+                pageSize = 10;
+            }
+
+            currentPage = 1;
+            loadData();
+        });
+
+        panel.add(infoPaginationLabel, BorderLayout.WEST);
+        panel.add(pages, BorderLayout.CENTER);
+        panel.add(wrapCombo(pageSizeCombo), BorderLayout.EAST);
+
+        paginationPanel.add(panel, BorderLayout.CENTER);
+
+        paginationPanel.revalidate();
+        paginationPanel.repaint();
     }
 
     private JPanel statCard(
@@ -180,130 +550,96 @@ public class RiwayatKasirPage extends JPanel {
         return card;
     }
 
-    private JPanel createTableCard() {
-        ShadowPanel card = new ShadowPanel(26);
-        card.setLayout(new BorderLayout(0, 18));
-        card.setBorder(new EmptyBorder(22, 22, 22, 22));
+    private JPanel searchBox() {
+        RoundedPanel box = new RoundedPanel(14);
+        box.setBackground(CARD);
+        box.setRoundedBorder(BORDER, 1);
+        box.setLayout(new BorderLayout(12, 0));
+        box.setBorder(new EmptyBorder(0, 14, 0, 14));
 
-        card.add(createFilterArea(), BorderLayout.NORTH);
+        box.add(svgIcon("icons/KasirPOS/search.svg", 17, 17, MUTED), BorderLayout.WEST);
 
-        JPanel middle = new JPanel(new BorderLayout(0, 0));
-        middle.setOpaque(false);
-        middle.add(createTableHeader(), BorderLayout.NORTH);
-        middle.add(createRows(), BorderLayout.CENTER);
+        searchField = new JTextField("Cari no transaksi, pelanggan, atau layanan...");
+        searchField.setBorder(null);
+        searchField.setOpaque(false);
+        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        searchField.setForeground(MUTED);
+        searchField.setCaretColor(TEXT);
 
-        card.add(middle, BorderLayout.CENTER);
-        card.add(createPagination(), BorderLayout.SOUTH);
+        searchField.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent e) {
+                if (searchField.getText().equals("Cari no transaksi, pelanggan, atau layanan...")) {
+                    searchField.setText("");
+                    searchField.setForeground(TEXT);
+                }
+            }
 
-        return card;
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (searchField.getText().trim().isEmpty()) {
+                    searchField.setText("Cari no transaksi, pelanggan, atau layanan...");
+                    searchField.setForeground(MUTED);
+                }
+            }
+        });
+
+        searchField.getDocument().addDocumentListener(new SimpleDocumentListener() {
+            @Override
+            public void update() {
+                String value = searchField.getText();
+
+                if (value.equals("Cari no transaksi, pelanggan, atau layanan...")) {
+                    keyword = "";
+                } else {
+                    keyword = value.trim();
+                }
+
+                currentPage = 1;
+                loadData();
+            }
+        });
+
+        box.add(searchField, BorderLayout.CENTER);
+
+        return box;
     }
 
-    private JPanel createFilterArea() {
-        JPanel panel = new JPanel(new MigLayout(
-                "insets 0, gap 12, fillx",
-                "[grow, fill][230!, fill][145!, fill][145!, fill][120!, fill]",
-                "[46!]"
-        ));
-        panel.setOpaque(false);
+    private JPanel resetBox() {
+        RoundedPanel box = new RoundedPanel(14);
 
-        panel.add(searchBox(), "grow");
-        panel.add(filterBox("icons/Dashboard/calendar.svg", "01 Mei 2026 - 15 Mei 2026"), "grow");
-        panel.add(filterBox(null, "Semua Metode"), "grow");
-        panel.add(filterBox(null, "Semua Status"), "grow");
-        panel.add(resetBox(), "grow");
+        box.setBackground(CARD);
+        box.setRoundedBorder(BORDER, 1);
+        box.setLayout(new FlowLayout(FlowLayout.CENTER, 8, 12));
+        box.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        return panel;
-    }
+        box.add(svgIcon("icons/RiwayatTransaksi/clock-3.svg", 15, 15, TEXT));
 
-    private JPanel createTableHeader() {
-        JPanel header = new JPanel(new MigLayout(
-                "insets 18 0 12 0, gap 0, fillx",
-                "[grow 8, fill][grow 12, fill][grow 17, fill][grow 18, fill][grow 9, fill][grow 10, fill][grow 10, fill][grow 10, fill][grow 6, fill]",
-                "[30!]"
-        ));
+        JLabel label = new JLabel("Reset Filter");
+        label.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        label.setForeground(TEXT);
 
-        header.setOpaque(false);
-        header.setBorder(
-                BorderFactory.createMatteBorder(
-                        0,
-                        0,
-                        1,
-                        0,
-                        new Color(238, 238, 238)
-                )
-        );
+        box.add(label);
 
-        header.add(headerText("No. Transaksi"), "growx");
-        header.add(headerText("Tanggal"), "growx");
-        header.add(headerText("Pelanggan"), "growx");
-        header.add(headerText("Layanan"), "growx");
-        header.add(headerText("Metode"), "growx");
-        header.add(headerText("Total"), "growx");
-        header.add(headerText("Status"), "growx");
-        header.add(headerText("Kasir"), "growx");
-        header.add(headerText("Aksi"), "growx");
+        box.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                keyword = "";
+                metodeFilter = "Semua Metode";
+                statusFilter = "Semua Status";
+                currentPage = 1;
 
-        return header;
-    }
+                searchField.setText("Cari no transaksi, pelanggan, atau layanan...");
+                searchField.setForeground(MUTED);
 
-    private JPanel createRows() {
-        JPanel rows = new JPanel();
-        rows.setOpaque(false);
-        rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
+                metodeCombo.setSelectedItem("Semua Metode");
+                statusCombo.setSelectedItem("Semua Status");
 
-        rows.add(row("TRX-0013", "15 Mei 2026 21:25", "Rian Maulana", "0821-0376-6432", "Haircut, Hair Wash", "2 layanan", "Tunai", "Rp 100.000", "Selesai", "Siti Nuraini"));
-        rows.add(row("TRX-0012", "15 Mei 2026 20:45", "Dewi Lestari", "0812-685-6666", "Haircut", "1 layanan", "QRIS", "Rp 70.000", "Selesai", "Siti Nuraini"));
-        rows.add(row("TRX-0011", "15 Mei 2026 19:30", "Agung Setiawan", "0821-0376-6432", "Hair Wash", "1 layanan", "Tunai", "Rp 30.000", "Selesai", "Siti Nuraini"));
-        rows.add(row("TRX-0010", "15 Mei 2026 18:15", "Budi Santoso", "0813-1234-5678", "Haircut, Hair Styling", "2 layanan", "QRIS", "Rp 120.000", "Selesai", "Siti Nuraini"));
-        rows.add(row("TRX-0009", "15 Mei 2026 17:20", "Maya Putri", "0857-2222-8888", "Hair Coloring", "1 layanan", "Tunai", "Rp 150.000", "Selesai", "Siti Nuraini"));
-        rows.add(row("TRX-0008", "15 Mei 2026 16:05", "Andi Wijaya", "0812-9999-1111", "Haircut", "1 layanan", "QRIS", "Rp 70.000", "Dibatalkan", "Siti Nuraini"));
-        rows.add(row("TRX-0007", "15 Mei 2026 15:10", "Siti Aisyah", "0823-4444-7777", "Hair Wash, Hair Styling", "2 layanan", "Tunai", "Rp 110.000", "Selesai", "Siti Nuraini"));
+                loadData();
+            }
+        });
 
-        return rows;
-    }
-
-    private JPanel row(
-            String trx,
-            String tanggal,
-            String nama,
-            String phone,
-            String layanan,
-            String count,
-            String metode,
-            String total,
-            String status,
-            String kasir
-    ) {
-        JPanel row = new JPanel(new MigLayout(
-                "insets 8 0 8 0, gap 0, fillx",
-                "[grow 8, fill][grow 12, fill][grow 17, fill][grow 18, fill][grow 9, fill][grow 10, fill][grow 10, fill][grow 10, fill][grow 6, fill]",
-                "[50!]"
-        ));
-
-        row.setOpaque(false);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 66));
-
-        row.setBorder(
-                BorderFactory.createMatteBorder(
-                        0,
-                        0,
-                        1,
-                        0,
-                        new Color(238, 238, 238)
-                )
-        );
-
-        row.add(cell(trx, true), "growx");
-        row.add(cell(tanggal, false), "growx");
-        row.add(customerCell(nama, phone), "growx");
-        row.add(serviceCell(layanan, count), "growx");
-        row.add(methodBadge(metode), "growx");
-        row.add(cell(total, true), "growx");
-        row.add(statusBadge(status), "growx");
-        row.add(cell(kasir, true), "growx");
-        row.add(actionCell(), "growx");
-
-        return row;
+        return box;
     }
 
     private JLabel headerText(String text) {
@@ -317,7 +653,7 @@ public class RiwayatKasirPage extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 16));
         panel.setOpaque(false);
 
-        JLabel label = new JLabel(text);
+        JLabel label = new JLabel(text == null ? "-" : text);
         label.setFont(new Font("Segoe UI", bold ? Font.BOLD : Font.PLAIN, 13));
         label.setForeground(TEXT);
 
@@ -339,11 +675,11 @@ public class RiwayatKasirPage extends JPanel {
         text.setOpaque(false);
         text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
 
-        JLabel nameLabel = new JLabel(name);
+        JLabel nameLabel = new JLabel(name == null ? "-" : name);
         nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         nameLabel.setForeground(TEXT);
 
-        JLabel phoneLabel = new JLabel(phone);
+        JLabel phoneLabel = new JLabel(phone == null || phone.isBlank() ? "-" : phone);
         phoneLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         phoneLabel.setForeground(MUTED);
 
@@ -364,7 +700,7 @@ public class RiwayatKasirPage extends JPanel {
         panel.setOpaque(false);
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
-        JLabel serviceLabel = new JLabel(service);
+        JLabel serviceLabel = new JLabel(service == null ? "-" : service);
         serviceLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         serviceLabel.setForeground(TEXT);
 
@@ -382,9 +718,11 @@ public class RiwayatKasirPage extends JPanel {
     }
 
     private JPanel methodBadge(String method) {
-        Color bg = method.equals("Tunai") ? GREEN_BG : PURPLE_BG;
-        Color fg = method.equals("Tunai") ? GREEN : PURPLE;
-        String icon = method.equals("Tunai")
+        boolean cash = method.equalsIgnoreCase("Tunai");
+
+        Color bg = cash ? GREEN_BG : PURPLE_BG;
+        Color fg = cash ? GREEN : PURPLE;
+        String icon = cash
                 ? "icons/RiwayatTransaksi/banknote.svg"
                 : "icons/KasirPOS/credit-card.svg";
 
@@ -404,7 +742,7 @@ public class RiwayatKasirPage extends JPanel {
     }
 
     private JPanel statusBadge(String status) {
-        boolean done = status.equals("Selesai");
+        boolean done = status.equalsIgnoreCase("Selesai");
 
         Color bg = done ? GREEN_BG : RED_BG;
         Color fg = done ? GREEN : RED;
@@ -427,98 +765,27 @@ public class RiwayatKasirPage extends JPanel {
         return alignLeft(badge);
     }
 
-    private JPanel actionCell() {
+    private JPanel actionCell(RiwayatKasirItem item) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
         panel.setOpaque(false);
 
-        panel.add(iconButton("icons/RiwayatTransaksi/eye.svg"));
+        JButton detail = iconButton("icons/RiwayatTransaksi/eye.svg");
+
+        detail.addActionListener(e -> JOptionPane.showMessageDialog(
+                this,
+                "No Transaksi: " + item.getKodeTransaksi()
+                        + "\nPelanggan: " + item.getNamaPelanggan()
+                        + "\nLayanan: " + item.getNamaLayanan()
+                        + "\nMetode: " + item.getMetodeUi()
+                        + "\nTotal: " + formatMoney(item.getTotal()),
+                "Detail Transaksi",
+                JOptionPane.INFORMATION_MESSAGE
+        ));
+
+        panel.add(detail);
         panel.add(iconButton("icons/KasirPOS/receipt-text.svg"));
 
         return panel;
-    }
-    private JPanel createPagination() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setOpaque(false);
-        panel.setBorder(new EmptyBorder(18, 0, 0, 0));
-
-        JLabel info = new JLabel("Menampilkan 1 - 10 dari 128 transaksi");
-        info.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        info.setForeground(MUTED);
-
-        JPanel pages = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-        pages.setOpaque(false);
-
-        pages.add(pageButton("<", false));
-        pages.add(pageButton("1", true));
-        pages.add(pageButton("2", false));
-        pages.add(pageButton("3", false));
-        pages.add(pageButton("...", false));
-        pages.add(pageButton("13", false));
-        pages.add(pageButton(">", false));
-
-        panel.add(info, BorderLayout.WEST);
-        panel.add(pages, BorderLayout.CENTER);
-        panel.add(filterBox(null, "10 / halaman"), BorderLayout.EAST);
-
-        return panel;
-    }
-
-    private JPanel searchBox() {
-        RoundedPanel box = new RoundedPanel(14);
-        box.setBackground(CARD);
-        box.setRoundedBorder(BORDER, 1);
-        box.setLayout(new BorderLayout(12, 0));
-        box.setBorder(new EmptyBorder(0, 14, 0, 14));
-
-        box.add(svgIcon("icons/KasirPOS/search.svg", 17, 17, MUTED), BorderLayout.WEST);
-
-        JTextField field = new JTextField("Cari no transaksi, pelanggan, atau layanan...");
-        field.setBorder(null);
-        field.setOpaque(false);
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        field.setForeground(MUTED);
-        field.setCaretColor(TEXT);
-
-        box.add(field, BorderLayout.CENTER);
-
-        return box;
-    }
-
-    private JPanel filterBox(String iconPath, String text) {
-        RoundedPanel box = new RoundedPanel(14);
-        box.setBackground(CARD);
-        box.setRoundedBorder(BORDER, 1);
-        box.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 12));
-        box.setPreferredSize(new Dimension(120, 46));
-
-        if (iconPath != null) {
-            box.add(svgIcon(iconPath, 16, 16, TEXT));
-        }
-
-        JLabel label = new JLabel(text);
-        label.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        label.setForeground(TEXT);
-        box.add(label);
-
-        return box;
-    }
-
-    private JPanel resetBox() {
-        RoundedPanel box = new RoundedPanel(14);
-
-        box.setBackground(CARD);
-        box.setRoundedBorder(BORDER, 1);
-        box.setLayout(new FlowLayout(FlowLayout.CENTER, 8, 12));
-
-        box.add(svgIcon("icons/RiwayatTransaksi/clock-3.svg", 15, 15, TEXT));
-
-        JLabel label = new JLabel("Reset Filter");
-        label.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        label.setForeground(TEXT);
-
-        box.add(label);
-
-        return box;
     }
 
     private JButton iconButton(String iconPath) {
@@ -536,7 +803,14 @@ public class RiwayatKasirPage extends JPanel {
         return btn;
     }
 
-    private JPanel pageButton(String text, boolean active) {
+    private JPanel pageButton(String text, boolean disabledOrActive, Runnable action) {
+        boolean active = false;
+
+        try {
+            active = Integer.parseInt(text) == currentPage;
+        } catch (Exception ignored) {
+        }
+
         RoundedPanel panel = new RoundedPanel(12);
 
         panel.setBackground(active ? TEXT : CARD);
@@ -547,7 +821,7 @@ public class RiwayatKasirPage extends JPanel {
 
         panel.setPreferredSize(new Dimension(36, 36));
         panel.setLayout(new GridBagLayout());
-        panel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        panel.setCursor(disabledOrActive && !active ? Cursor.getDefaultCursor() : new Cursor(Cursor.HAND_CURSOR));
 
         JLabel label = new JLabel(text);
         label.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -555,8 +829,40 @@ public class RiwayatKasirPage extends JPanel {
 
         panel.add(label);
 
+        if (!disabledOrActive || active) {
+            panel.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    action.run();
+                }
+            });
+        }
+
         return panel;
     }
+
+    private JPanel wrapCombo(JComboBox<String> comboBox) {
+        RoundedPanel box = new RoundedPanel(14);
+        box.setBackground(CARD);
+        box.setRoundedBorder(BORDER, 1);
+        box.setLayout(new BorderLayout());
+        box.setBorder(new EmptyBorder(0, 10, 0, 10));
+
+        comboBox.setOpaque(false);
+        comboBox.setBorder(null);
+
+        box.add(comboBox, BorderLayout.CENTER);
+
+        return box;
+    }
+
+    private void styleCombo(JComboBox<String> comboBox) {
+        comboBox.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        comboBox.setBackground(CARD);
+        comboBox.setForeground(TEXT);
+        comboBox.setFocusable(false);
+    }
+
     private JPanel dateCard(String iconPath, String text, int width) {
         RoundedPanel panel = new RoundedPanel(14);
         panel.setBackground(CARD);
@@ -595,6 +901,64 @@ public class RiwayatKasirPage extends JPanel {
         } catch (Exception e) {
             System.out.println("Icon tidak ditemukan: " + path);
             return null;
+        }
+    }
+
+    private String formatMoney(BigDecimal value) {
+        if (value == null) {
+            value = BigDecimal.ZERO;
+        }
+
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.of("id", "ID"));
+        symbols.setGroupingSeparator('.');
+
+        DecimalFormat format = new DecimalFormat("#,###", symbols);
+
+        return "Rp " + format.format(value);
+    }
+
+    private String formatDateTime(java.time.LocalDateTime dateTime) {
+        if (dateTime == null) {
+            return "-";
+        }
+
+        return dateTime.format(
+                DateTimeFormatter.ofPattern(
+                        "dd MMM yyyy HH:mm",
+                        Locale.of("id", "ID")
+                )
+        );
+    }
+
+    private String getTodayText() {
+        return LocalDate.now().format(
+                DateTimeFormatter.ofPattern(
+                        "EEEE, dd MMMM yyyy",
+                        Locale.of("id", "ID")
+                )
+        );
+    }
+
+    private String getTimeText() {
+        return LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private abstract static class SimpleDocumentListener implements DocumentListener {
+        public abstract void update();
+
+        @Override
+        public void insertUpdate(DocumentEvent e) {
+            update();
+        }
+
+        @Override
+        public void removeUpdate(DocumentEvent e) {
+            update();
+        }
+
+        @Override
+        public void changedUpdate(DocumentEvent e) {
+            update();
         }
     }
 

@@ -1,1056 +1,1105 @@
 package com.barberpro.ui.dashboard.pages.owner;
 
+import com.barberpro.model.OwnerPelangganItem;
+import com.barberpro.model.OwnerPelangganStats;
+import com.barberpro.service.OwnerPelangganService;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.RoundRectangle2D;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Locale;
 
 public class PelangganPage extends JPanel {
 
-    // =========================================================
-    // COLORS
-    // =========================================================
+    private static final Color BG = new Color(242, 242, 238);
+    private static final Color CARD = Color.WHITE;
+    private static final Color TEXT = new Color(20, 20, 20);
+    private static final Color MUTED = new Color(120, 120, 120);
+    private static final Color BORDER = new Color(232, 232, 232);
+    private static final Color DARK = new Color(18, 18, 18);
 
-    private static final Color BG =
-            new Color(242,242,238);
+    private static final Color BLUE_BG = new Color(239, 246, 255);
+    private static final Color BLUE = new Color(37, 99, 235);
+    private static final Color GREEN_BG = new Color(240, 253, 244);
+    private static final Color GREEN = new Color(34, 197, 94);
+    private static final Color ORANGE_BG = new Color(255, 247, 237);
+    private static final Color ORANGE = new Color(245, 158, 11);
+    private static final Color PURPLE_BG = new Color(250, 245, 255);
+    private static final Color PURPLE = new Color(147, 51, 234);
+    private static final Color RED = new Color(239, 68, 68);
 
-    private static final Color CARD =
-            Color.WHITE;
+    private final OwnerPelangganService pelangganService = new OwnerPelangganService();
 
-    private static final Color TEXT =
-            new Color(20,20,20);
+    private JPanel statsPanel;
+    private JPanel tableBody;
+    private JPanel pagination;
+    private JTextField searchField;
 
-    private static final Color MUTED =
-            new Color(130,130,130);
+    private String keyword = "";
+    private int currentPage = 1;
+    private int pageSize = 5;
+    private int totalData = 0;
 
-    private static final Color BORDER =
-            new Color(235,235,235);
-
-    private static final Color DARK =
-            new Color(18,18,18);
-
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
+    private boolean isLoading = false;
 
     public PelangganPage() {
-
         setLayout(new BorderLayout());
-
         setBackground(BG);
 
         buildUI();
+        loadData();
     }
-
-    // =========================================================
-    // BUILD UI
-    // =========================================================
 
     private void buildUI() {
+        removeAll();
 
-        JPanel content = new JPanel();
-
+        JPanel content = new JPanel(new BorderLayout(0, 18));
         content.setOpaque(false);
+        content.setBorder(new EmptyBorder(24, 24, 22, 24));
 
-        content.setLayout(
-                new BoxLayout(
-                        content,
-                        BoxLayout.Y_AXIS
-                )
-        );
+        JPanel top = new JPanel();
+        top.setOpaque(false);
+        top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
 
-        content.setBorder(
-                new EmptyBorder(
-                        20,
-                        20,
-                        20,
-                        20
-                )
-        );
+        top.add(createHeader());
+        top.add(Box.createVerticalStrut(18));
 
-        content.add(createHeader());
+        statsPanel = new JPanel(new GridLayout(1, 4, 16, 0));
+        statsPanel.setOpaque(false);
+        statsPanel.setPreferredSize(new Dimension(100, 106));
+        statsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 106));
 
-        content.add(Box.createVerticalStrut(24));
+        top.add(statsPanel);
 
-        content.add(createStatisticSection());
+        content.add(top, BorderLayout.NORTH);
+        content.add(createTableCard(), BorderLayout.CENTER);
 
-        content.add(Box.createVerticalStrut(28));
+        add(content, BorderLayout.CENTER);
 
-        content.add(createCustomerSection());
-
-        JScrollPane scroll = new JScrollPane(content);
-
-        scroll.setBorder(null);
-
-        scroll.getViewport().setBackground(BG);
-
-        scroll.setHorizontalScrollBarPolicy(
-                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
-        );
-
-        scroll.getVerticalScrollBar().setPreferredSize(
-                new Dimension(0,0)
-        );
-
-        scroll.getVerticalScrollBar().setUnitIncrement(14);
-
-        add(scroll, BorderLayout.CENTER);
+        revalidate();
+        repaint();
     }
 
-    // =========================================================
-    // HEADER
-    // =========================================================
-
     private JPanel createHeader() {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
 
-        JPanel panel = new JPanel(new BorderLayout());
-
-        panel.setOpaque(false);
-
-        // LEFT
         JPanel left = new JPanel();
-
         left.setOpaque(false);
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
 
-        left.setLayout(
-                new BoxLayout(
-                        left,
-                        BoxLayout.Y_AXIS
-                )
-        );
-
-        JLabel title =
-                new JLabel("Data Pelanggan");
-
-        title.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.BOLD,
-                        28
-                )
-        );
-
+        JLabel title = new JLabel("Data Pelanggan");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 30));
         title.setForeground(TEXT);
 
-        JLabel subtitle =
-                new JLabel(
-                        "Kelola seluruh pelanggan barber shop"
-                );
-
-        subtitle.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.PLAIN,
-                        13
-                )
-        );
-
+        JLabel subtitle = new JLabel("Kelola data pelanggan, kunjungan, poin, dan tier member");
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subtitle.setForeground(MUTED);
 
         left.add(title);
-
-        left.add(Box.createVerticalStrut(4));
-
+        left.add(Box.createVerticalStrut(5));
         left.add(subtitle);
 
-        // RIGHT
-        JPanel right =
-                new JPanel(
-                        new FlowLayout(
-                                FlowLayout.RIGHT,
-                                12,
-                                0
-                        )
-                );
-
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
         right.setOpaque(false);
 
         right.add(createSearchBox());
+        right.add(createDarkButton(
+                "Tambah Pelanggan",
+                "icons/DataPelanggan/plus.svg",
+                () -> showFormDialog(null)
+        ));
 
-        right.add(
-                createDarkButton(
-                        "Tambah Pelanggan",
-                        "icons/DataPelanggan/plus.svg"
-                )
-        );
+        header.add(left, BorderLayout.WEST);
+        header.add(right, BorderLayout.EAST);
 
-        panel.add(left, BorderLayout.WEST);
-
-        panel.add(right, BorderLayout.EAST);
-
-        return panel;
+        return header;
     }
-
-    // =========================================================
-    // SEARCH BOX
-    // =========================================================
 
     private JPanel createSearchBox() {
-
-        JPanel panel =
-                new RoundedPanel(
-                        18,
-                        CARD
-                );
-
-        panel.setPreferredSize(
-                new Dimension(240,44)
-        );
-
-        panel.setLayout(new BorderLayout());
-
-        panel.setBorder(
-                new EmptyBorder(
-                        0,
-                        14,
-                        0,
-                        14
-                )
-        );
-
-        panel.add(
-                svgIcon(
-                        "icons/DataPelanggan/search.svg",
-                        16,
-                        16,
-                        MUTED
-                ),
-                BorderLayout.WEST
-        );
-
-        JTextField field =
-                new JTextField();
-
-        field.setBorder(null);
-
-        field.setOpaque(false);
-
-        field.setForeground(TEXT);
-
-        field.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.PLAIN,
-                        13
-                )
-        );
-
-        field.setText("Cari pelanggan...");
-
-        panel.add(field, BorderLayout.CENTER);
-
-        return panel;
-    }
-
-    // =========================================================
-    // STATISTIC SECTION
-    // =========================================================
-
-    private JPanel createStatisticSection() {
-
-        JPanel panel =
-                new JPanel(
-                        new GridLayout(
-                                1,
-                                4,
-                                18,
-                                0
-                        )
-                );
-
-        panel.setOpaque(false);
-
-        panel.add(
-                createStatCard(
-                        "Total Pelanggan",
-                        "142",
-                        "icons/DataPelanggan/users.svg"
-                )
-        );
-
-        panel.add(
-                createStatCard(
-                        "Pelanggan Aktif",
-                        "118",
-                        "icons/DataPelanggan/user-check.svg"
-                )
-        );
-
-        panel.add(
-                createStatCard(
-                        "Member Premium",
-                        "39",
-                        "icons/DataPelanggan/crown.svg"
-                )
-        );
-
-        panel.add(
-                createStatCard(
-                        "Pelanggan Baru",
-                        "6",
-                        "icons/DataPelanggan/user-plus.svg"
-                )
-        );
-
-        return panel;
-    }
-
-    // =========================================================
-    // STAT CARD
-    // =========================================================
-
-    private JPanel createStatCard(
-            String title,
-            String value,
-            String iconPath
-    ) {
-
-        ShadowPanel card =
-                new ShadowPanel(24);
-
-        card.setLayout(new BorderLayout());
-
-        card.setPreferredSize(
-                new Dimension(220,110)
-        );
-
-        card.setBorder(
-                new EmptyBorder(
-                        18,
-                        18,
-                        18,
-                        18
-                )
-        );
-
-        JPanel top =
-                new JPanel(
-                        new BorderLayout()
-                );
-
-        top.setOpaque(false);
-
-        JPanel iconBox =
-                new RoundedPanel(
-                        16,
-                        new Color(245,245,245)
-                );
-
-        iconBox.setPreferredSize(
-                new Dimension(44,44)
-        );
-
-        iconBox.setLayout(new GridBagLayout());
-
-        iconBox.add(
-                svgIcon(
-                        iconPath,
-                        18,
-                        18,
-                        TEXT
-                )
-        );
-
-        top.add(iconBox, BorderLayout.WEST);
-
-        JLabel lblValue =
-                new JLabel(value);
-
-        lblValue.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.BOLD,
-                        28
-                )
-        );
-
-        lblValue.setForeground(TEXT);
-
-        JLabel lblTitle =
-                new JLabel(title);
-
-        lblTitle.setForeground(MUTED);
-
-        lblTitle.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.PLAIN,
-                        12
-                )
-        );
-
-        JPanel text =
-                new JPanel();
-
-        text.setOpaque(false);
-
-        text.setLayout(
-                new BoxLayout(
-                        text,
-                        BoxLayout.Y_AXIS
-                )
-        );
-
-        text.add(Box.createVerticalGlue());
-
-        text.add(lblValue);
-
-        text.add(Box.createVerticalStrut(2));
-
-        text.add(lblTitle);
-
-        card.add(top, BorderLayout.NORTH);
-
-        card.add(text, BorderLayout.CENTER);
-
-        return card;
-    }
-
-    // =========================================================
-    // CUSTOMER SECTION
-    // =========================================================
-
-    private JPanel createCustomerSection() {
-
-        JPanel wrapper =
-                new JPanel();
-
-        wrapper.setOpaque(false);
-
-        wrapper.setLayout(
-                new BoxLayout(
-                        wrapper,
-                        BoxLayout.Y_AXIS
-                )
-        );
-
-        wrapper.add(
-                createCustomerCard(
-                        "Rian Maulana",
-                        "rian@gmail.com",
-                        "0812-3456-7890",
-                        "Gold Member",
-                        "12 Kunjungan",
-                        "250 Poin",
-                        true
-                )
-        );
-
-        wrapper.add(Box.createVerticalStrut(16));
-
-        wrapper.add(
-                createCustomerCard(
-                        "Siti Aisyah",
-                        "siti@gmail.com",
-                        "0813-2222-1111",
-                        "Silver Member",
-                        "8 Kunjungan",
-                        "120 Poin",
-                        true
-                )
-        );
-
-        wrapper.add(Box.createVerticalStrut(16));
-
-        wrapper.add(
-                createCustomerCard(
-                        "Agung Setiawan",
-                        "agung@gmail.com",
-                        "0821-9876-5432",
-                        "Bronze Member",
-                        "4 Kunjungan",
-                        "50 Poin",
-                        false
-                )
-        );
-
-        wrapper.add(Box.createVerticalStrut(22));
-
-        // PAGINATION
-        JPanel pagination =
-                new JPanel(
-                        new FlowLayout(
-                                FlowLayout.RIGHT,
-                                8,
-                                0
-                        )
-                );
-
-        pagination.setOpaque(false);
-
-        pagination.add(
-                pageButton("<", false)
-        );
-
-        pagination.add(
-                pageButton("1", true)
-        );
-
-        pagination.add(
-                pageButton("2", false)
-        );
-
-        pagination.add(
-                pageButton(">", false)
-        );
-
-        wrapper.add(pagination);
-
-        return wrapper;
-    }
-
-    // =========================================================
-    // CUSTOMER CARD
-    // =========================================================
-
-    private JPanel createCustomerCard(
-            String name,
-            String email,
-            String phone,
-            String member,
-            String visit,
-            String point,
-            boolean active
-    ) {
-
-        ShadowPanel card =
-                new ShadowPanel(28);
-
-        card.setLayout(new BorderLayout());
-
-        card.setBorder(
-                new EmptyBorder(
-                        18,
-                        22,
-                        18,
-                        22
-                )
-        );
-
-        card.setPreferredSize(
-                new Dimension(1000,110)
-        );
-
-        // LEFT
-        JPanel left =
-                new JPanel(
-                        new FlowLayout(
-                                FlowLayout.LEFT,
-                                18,
-                                0
-                        )
-                );
-
-        left.setOpaque(false);
-
-        JPanel avatar =
-                new RoundedPanel(
-                        100,
-                        new Color(240,240,240)
-                );
-
-        avatar.setPreferredSize(
-                new Dimension(58,58)
-        );
-
-        avatar.setLayout(new GridBagLayout());
-
-        avatar.add(
-                svgIcon(
-                        "icons/DataPelanggan/user-round.svg",
-                        24,
-                        24,
-                        TEXT
-                )
-        );
-
-        JPanel info =
-                new JPanel();
-
-        info.setOpaque(false);
-
-        info.setLayout(
-                new BoxLayout(
-                        info,
-                        BoxLayout.Y_AXIS
-                )
-        );
-
-        JLabel lblName =
-                new JLabel(name);
-
-        lblName.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.BOLD,
-                        16
-                )
-        );
-
-        lblName.setForeground(TEXT);
-
-        JLabel lblEmail =
-                new JLabel(email);
-
-        lblEmail.setForeground(MUTED);
-
-        lblEmail.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.PLAIN,
-                        12
-                )
-        );
-
-        JLabel lblPhone =
-                new JLabel(phone);
-
-        lblPhone.setForeground(MUTED);
-
-        lblPhone.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.PLAIN,
-                        12
-                )
-        );
-
-        info.add(lblName);
-
-        info.add(Box.createVerticalStrut(4));
-
-        info.add(lblEmail);
-
-        info.add(Box.createVerticalStrut(2));
-
-        info.add(lblPhone);
-
-        left.add(avatar);
-
-        left.add(info);
-
-        // CENTER
-        JPanel center =
-                new JPanel(
-                        new GridLayout(
-                                1,
-                                3,
-                                20,
-                                0
-                        )
-                );
-
-        center.setOpaque(false);
-
-        center.add(
-                createInfoMini(
-                        "Member",
-                        member
-                )
-        );
-
-        center.add(
-                createInfoMini(
-                        "Kunjungan",
-                        visit
-                )
-        );
-
-        center.add(
-                createInfoMini(
-                        "Poin",
-                        point
-                )
-        );
-
-        // RIGHT
-        JPanel right =
-                new JPanel();
-
-        right.setOpaque(false);
-
-        right.setLayout(
-                new BoxLayout(
-                        right,
-                        BoxLayout.Y_AXIS
-                )
-        );
-
-        JPanel badge =
-                new RoundedPanel(
-                        16,
-                        active
-                                ? new Color(240,253,244)
-                                : new Color(254,242,242)
-                );
-
-        badge.setLayout(
-                new FlowLayout(
-                        FlowLayout.CENTER,
-                        8,
-                        5
-                )
-        );
-
-        JLabel status =
-                new JLabel(
-                        active
-                                ? "Aktif"
-                                : "Nonaktif"
-                );
-
-        status.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.BOLD,
-                        11
-                )
-        );
-
-        status.setForeground(
-                active
-                        ? new Color(34,197,94)
-                        : new Color(239,68,68)
-        );
-
-        badge.add(status);
-
-        JPanel actions =
-                new JPanel(
-                        new FlowLayout(
-                                FlowLayout.RIGHT,
-                                10,
-                                0
-                        )
-                );
-
-        actions.setOpaque(false);
-
-        actions.add(
-                actionButton(
-                        "icons/DataPelanggan/pencil.svg",
-                        new Color(80,80,80)
-                )
-        );
-
-        actions.add(
-                actionButton(
-                        "icons/DataPelanggan/trash-2.svg",
-                        new Color(239,68,68)
-                )
-        );
-
-        right.add(badge);
-
-        right.add(Box.createVerticalStrut(16));
-
-        right.add(actions);
-
-        card.add(left, BorderLayout.WEST);
-
-        card.add(center, BorderLayout.CENTER);
-
-        card.add(right, BorderLayout.EAST);
-
-        // HOVER
-        card.addMouseListener(new MouseAdapter() {
-
+        RoundedPanel panel = new RoundedPanel(16, CARD);
+        panel.setPreferredSize(new Dimension(280, 46));
+        panel.setLayout(new BorderLayout(10, 0));
+        panel.setBorder(new EmptyBorder(0, 14, 0, 14));
+        panel.setRoundedBorder(BORDER, 1);
+
+        panel.add(svgIcon("icons/DataPelanggan/search.svg", 16, 16, MUTED), BorderLayout.WEST);
+
+        searchField = new JTextField("Cari pelanggan...");
+        searchField.setBorder(null);
+        searchField.setOpaque(false);
+        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        searchField.setForeground(MUTED);
+        searchField.setCaretColor(TEXT);
+
+        searchField.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
-            public void mouseEntered(MouseEvent e) {
-
-                card.setBorder(
-                        BorderFactory.createCompoundBorder(
-                                BorderFactory.createLineBorder(
-                                        new Color(220,220,220),
-                                        1
-                                ),
-                                new EmptyBorder(
-                                        17,
-                                        21,
-                                        17,
-                                        21
-                                )
-                        )
-                );
+            public void focusGained(java.awt.event.FocusEvent e) {
+                if (searchField.getText().equals("Cari pelanggan...")) {
+                    searchField.setText("");
+                    searchField.setForeground(TEXT);
+                }
             }
 
             @Override
-            public void mouseExited(MouseEvent e) {
-
-                card.setBorder(
-                        new EmptyBorder(
-                                18,
-                                22,
-                                18,
-                                22
-                        )
-                );
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (searchField.getText().trim().isEmpty()) {
+                    searchField.setText("Cari pelanggan...");
+                    searchField.setForeground(MUTED);
+                }
             }
         });
 
+        searchField.getDocument().addDocumentListener(new SimpleDocumentListener() {
+            @Override
+            public void update() {
+                if (isLoading) return;
+
+                String value = searchField.getText();
+
+                keyword = value.equals("Cari pelanggan...")
+                        ? ""
+                        : value.trim();
+
+                currentPage = 1;
+                loadData();
+            }
+        });
+
+        panel.add(searchField, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private void loadData() {
+        if (isLoading) return;
+
+        isLoading = true;
+
+        SwingWorker<Void, Void> worker = new SwingWorker<>() {
+
+            private OwnerPelangganStats stats;
+            private List<OwnerPelangganItem> items;
+            private int count;
+
+            @Override
+            protected Void doInBackground() throws Exception {
+                stats = pelangganService.getStats();
+                count = pelangganService.countPelanggan(keyword);
+
+                items = pelangganService.getPelanggan(
+                        keyword,
+                        currentPage,
+                        pageSize
+                );
+
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get();
+
+                    totalData = count;
+                    renderStats(stats);
+                    renderRows(items);
+                    renderPagination();
+
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(
+                            PelangganPage.this,
+                            "Gagal memuat pelanggan: " + e.getMessage(),
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                } finally {
+                    isLoading = false;
+                }
+            }
+        };
+
+        worker.execute();
+    }
+
+    private void renderStats(OwnerPelangganStats stats) {
+        statsPanel.removeAll();
+
+        statsPanel.add(statCard(
+                "Total Pelanggan",
+                String.valueOf(stats.getTotalPelanggan()),
+                "Semua pelanggan",
+                "icons/DataPelanggan/users.svg",
+                BLUE_BG,
+                BLUE
+        ));
+
+        statsPanel.add(statCard(
+                "Pelanggan Aktif",
+                String.valueOf(stats.getPelangganAktif()),
+                "Punya kunjungan",
+                "icons/DataPelanggan/user-check.svg",
+                GREEN_BG,
+                GREEN
+        ));
+
+        statsPanel.add(statCard(
+                "Member Premium",
+                String.valueOf(stats.getMemberPremium()),
+                "Poin atau kunjungan tinggi",
+                "icons/DataPelanggan/crown.svg",
+                ORANGE_BG,
+                ORANGE
+        ));
+
+        statsPanel.add(statCard(
+                "Pelanggan Baru",
+                String.valueOf(stats.getPelangganBaruBulanIni()),
+                "Bulan ini",
+                "icons/DataPelanggan/user-plus.svg",
+                PURPLE_BG,
+                PURPLE
+        ));
+
+        statsPanel.revalidate();
+        statsPanel.repaint();
+    }
+
+    private JPanel statCard(
+            String title,
+            String value,
+            String subtitle,
+            String iconPath,
+            Color iconBg,
+            Color iconColor
+    ) {
+        ShadowPanel card = new ShadowPanel(24);
+        card.setLayout(new BorderLayout(14, 0));
+        card.setBorder(new EmptyBorder(16, 16, 16, 16));
+
+        RoundedPanel iconBox = new RoundedPanel(18, iconBg);
+        iconBox.setPreferredSize(new Dimension(54, 54));
+        iconBox.setLayout(new GridBagLayout());
+        iconBox.add(svgIcon(iconPath, 23, 23, iconColor));
+
+        JPanel textBox = new JPanel();
+        textBox.setOpaque(false);
+        textBox.setLayout(new BoxLayout(textBox, BoxLayout.Y_AXIS));
+
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        titleLabel.setForeground(new Color(70, 70, 70));
+
+        JLabel valueLabel = new JLabel(value);
+        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 25));
+        valueLabel.setForeground(TEXT);
+
+        JLabel subtitleLabel = new JLabel(subtitle);
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        subtitleLabel.setForeground(MUTED);
+
+        textBox.add(Box.createVerticalGlue());
+        textBox.add(titleLabel);
+        textBox.add(Box.createVerticalStrut(3));
+        textBox.add(valueLabel);
+        textBox.add(Box.createVerticalStrut(3));
+        textBox.add(subtitleLabel);
+        textBox.add(Box.createVerticalGlue());
+
+        card.add(iconBox, BorderLayout.WEST);
+        card.add(textBox, BorderLayout.CENTER);
+
         return card;
     }
 
-    // =========================================================
-    // INFO MINI
-    // =========================================================
+    private JPanel createTableCard() {
+        ShadowPanel card = new ShadowPanel(28);
+        card.setLayout(new BorderLayout());
+        card.setBorder(new EmptyBorder(20, 22, 18, 30));
 
-    private JPanel createInfoMini(
-            String title,
-            String value
-    ) {
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+        top.setBorder(new EmptyBorder(0, 0, 12, 0));
 
-        JPanel panel =
-                new JPanel();
+        JPanel titleBox = new JPanel();
+        titleBox.setOpaque(false);
+        titleBox.setLayout(new BoxLayout(titleBox, BoxLayout.Y_AXIS));
 
-        panel.setOpaque(false);
+        JLabel title = new JLabel("Daftar Pelanggan");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        title.setForeground(TEXT);
 
-        panel.setLayout(
-                new BoxLayout(
-                        panel,
-                        BoxLayout.Y_AXIS
-                )
-        );
+        JLabel info = new JLabel("Data pelanggan dari database");
+        info.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        info.setForeground(MUTED);
 
-        JLabel lblTitle =
-                new JLabel(title);
+        titleBox.add(title);
+        titleBox.add(Box.createVerticalStrut(4));
+        titleBox.add(info);
 
-        lblTitle.setForeground(MUTED);
+        top.add(titleBox, BorderLayout.WEST);
 
-        lblTitle.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.PLAIN,
-                        11
-                )
-        );
+        JPanel table = new JPanel(new BorderLayout());
+        table.setOpaque(false);
 
-        JLabel lblValue =
-                new JLabel(value);
+        table.add(createTableHeader(), BorderLayout.NORTH);
 
-        lblValue.setForeground(TEXT);
+        tableBody = new JPanel();
+        tableBody.setOpaque(false);
+        tableBody.setLayout(new BoxLayout(tableBody, BoxLayout.Y_AXIS));
 
-        lblValue.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.BOLD,
-                        14
-                )
-        );
+        table.add(tableBody, BorderLayout.CENTER);
 
-        panel.add(lblTitle);
+        pagination = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        pagination.setOpaque(false);
+        pagination.setBorder(new EmptyBorder(14, 0, 0, 0));
 
-        panel.add(Box.createVerticalStrut(4));
+        card.add(top, BorderLayout.NORTH);
+        card.add(table, BorderLayout.CENTER);
+        card.add(pagination, BorderLayout.SOUTH);
 
-        panel.add(lblValue);
-
-        return panel;
+        return card;
     }
 
-    // =========================================================
-    // ACTION BUTTON
-    // =========================================================
-
-    private JPanel actionButton(
-            String path,
-            Color color
-    ) {
-
-        JPanel panel =
-                new JPanel(
-                        new GridBagLayout()
-                );
-
-        panel.setOpaque(false);
-
-        panel.setPreferredSize(
-                new Dimension(18,18)
-        );
-
-        panel.setCursor(
-                new Cursor(Cursor.HAND_CURSOR)
-        );
-
-        panel.add(
-                svgIcon(
-                        path,
-                        14,
-                        14,
-                        color
+    private JPanel createTableHeader() {
+        JPanel header = new JPanel(new GridBagLayout());
+        header.setOpaque(false);
+        header.setBorder(
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER),
+                        new EmptyBorder(10, 10, 10, 10)
                 )
         );
 
-        return panel;
+        addHeaderCell(header, "Pelanggan", 0, 0.34);
+        addHeaderCell(header, "No HP", 1, 0.20);
+        addHeaderCell(header, "Riwayat", 2, 0.20);
+        addHeaderCell(header, "Daftar", 3, 0.16);
+        addHeaderCell(header, "Aksi", 4, 0.10);
+
+        return header;
     }
 
-    // =========================================================
-    // PAGE BUTTON
-    // =========================================================
-
-    private JPanel pageButton(
+    private void addHeaderCell(
+            JPanel parent,
             String text,
-            boolean active
+            int x,
+            double weight
     ) {
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = x;
+        c.gridy = 0;
+        c.weightx = weight;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.anchor = GridBagConstraints.WEST;
 
-        JPanel panel =
-                new RoundedPanel(
-                        12,
-                        active
-                                ? DARK
-                                : CARD
-                );
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        label.setForeground(new Color(70, 70, 70));
 
-        panel.setPreferredSize(
-                new Dimension(34,34)
-        );
+        parent.add(label, c);
+    }
 
-        panel.setLayout(new GridBagLayout());
+    private void renderRows(List<OwnerPelangganItem> items) {
+        tableBody.removeAll();
 
-        JLabel label =
-                new JLabel(text);
+        if (items == null || items.isEmpty()) {
+            tableBody.add(createEmptyState());
+        } else {
+            for (OwnerPelangganItem item : items) {
+                tableBody.add(createTableRow(item));
+            }
+        }
 
-        label.setForeground(
-                active
-                        ? Color.WHITE
-                        : TEXT
-        );
+        tableBody.revalidate();
+        tableBody.repaint();
+    }
 
-        label.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.BOLD,
-                        12
-                )
-        );
+    private JPanel createEmptyState() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setOpaque(false);
+        panel.setPreferredSize(new Dimension(100, 300));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
+
+        JLabel label = new JLabel("Data pelanggan tidak ditemukan.");
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        label.setForeground(MUTED);
 
         panel.add(label);
 
         return panel;
     }
 
-    // =========================================================
-    // DARK BUTTON
-    // =========================================================
+    private JPanel createTableRow(OwnerPelangganItem item) {
+        JPanel row = new JPanel(new GridBagLayout());
+        row.setOpaque(false);
 
-    private JButton createDarkButton(
-            String text,
-            String iconPath
+        row.setPreferredSize(new Dimension(100, 82));
+        row.setMinimumSize(new Dimension(100, 82));
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 82));
+
+        row.setBorder(
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(238, 238, 238)),
+                        new EmptyBorder(12, 10, 12, 10)
+                )
+        );
+
+        addRowCell(row, customerCell(item), 0, 0.34);
+        addRowCell(row, textCell(emptyDash(item.getNoHp()), false), 1, 0.20);
+        addRowCell(row, historyCell(item), 2, 0.20);
+        addRowCell(row, textCell(formatDate(item), false), 3, 0.16);
+        addRowCell(row, actionCell(item), 4, 0.10);
+
+        row.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                row.setBackground(new Color(250, 250, 250));
+                row.setOpaque(true);
+                row.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                row.setOpaque(false);
+                row.repaint();
+            }
+        });
+
+        return row;
+    }
+
+    private void addRowCell(
+            JPanel parent,
+            JComponent component,
+            int x,
+            double weight
     ) {
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = x;
+        c.gridy = 0;
+        c.weightx = weight;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.anchor = GridBagConstraints.CENTER;
 
-        JButton btn =
-                new JButton(text);
+        parent.add(component, c);
+    }
 
-        btn.setFocusPainted(false);
+    private JPanel customerCell(OwnerPelangganItem item) {
+        JPanel panel = new JPanel(new BorderLayout(12, 0));
+        panel.setOpaque(false);
 
-        btn.setBorderPainted(false);
+        RoundedPanel avatar = new RoundedPanel(99, new Color(246, 246, 246));
+        avatar.setPreferredSize(new Dimension(46, 46));
+        avatar.setMinimumSize(new Dimension(46, 46));
+        avatar.setMaximumSize(new Dimension(46, 46));
+        avatar.setLayout(new GridBagLayout());
+        avatar.add(svgIcon("icons/DataPelanggan/user-round.svg", 18, 18, TEXT));
 
-        btn.setBackground(DARK);
+        JPanel textBox = new JPanel();
+        textBox.setOpaque(false);
+        textBox.setLayout(new BoxLayout(textBox, BoxLayout.Y_AXIS));
 
-        btn.setForeground(Color.WHITE);
+        JLabel name = new JLabel(item.getNamaPelanggan());
+        name.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        name.setForeground(TEXT);
 
-        btn.setCursor(
-                new Cursor(Cursor.HAND_CURSOR)
+        JLabel desc = new JLabel("ID Pelanggan: " + item.getIdPelanggan() + " • " + emptyDash(item.getNamaTier()));
+        desc.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        desc.setForeground(MUTED);
+
+        textBox.add(Box.createVerticalGlue());
+        textBox.add(name);
+        textBox.add(Box.createVerticalStrut(4));
+        textBox.add(desc);
+        textBox.add(Box.createVerticalGlue());
+
+        panel.add(avatar, BorderLayout.WEST);
+        panel.add(textBox, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel historyCell(OwnerPelangganItem item) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        panel.setOpaque(false);
+
+        RoundedPanel visitBadge = miniBadge(
+                item.getTotalKunjungan() + " kali",
+                GREEN_BG,
+                GREEN
         );
 
-        btn.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.BOLD,
-                        13
-                )
+        RoundedPanel pointBadge = miniBadge(
+                item.getPoinLoyalitas() + " poin",
+                BLUE_BG,
+                BLUE
         );
 
-        btn.setBorder(
-                new EmptyBorder(
-                        12,
-                        18,
-                        12,
-                        18
-                )
-        );
+        panel.add(visitBadge);
+        panel.add(pointBadge);
 
-        btn.setIcon(
-                svgIcon(
-                        iconPath,
-                        15,
-                        15,
-                        Color.WHITE
-                ).getIcon()
-        );
+        return panel;
+    }
+
+    private RoundedPanel miniBadge(
+            String text,
+            Color bg,
+            Color color
+    ) {
+        RoundedPanel badge = new RoundedPanel(14, bg);
+        badge.setPreferredSize(new Dimension(86, 30));
+        badge.setMinimumSize(new Dimension(86, 30));
+        badge.setMaximumSize(new Dimension(86, 30));
+        badge.setLayout(new GridBagLayout());
+
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        label.setForeground(color);
+
+        badge.add(label);
+
+        return badge;
+    }
+
+    private JPanel textCell(String text, boolean bold) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        panel.setOpaque(false);
+
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Segoe UI", bold ? Font.BOLD : Font.PLAIN, 13));
+        label.setForeground(bold ? TEXT : MUTED);
+
+        panel.add(label);
+
+        return panel;
+    }
+
+    private JPanel actionCell(OwnerPelangganItem item) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        panel.setOpaque(false);
+        panel.setPreferredSize(new Dimension(84, 36));
+        panel.setMinimumSize(new Dimension(84, 36));
+
+        panel.add(iconActionButton(
+                "icons/DataPelanggan/pencil.svg",
+                new Color(80, 80, 80),
+                () -> showFormDialog(item)
+        ));
+
+        panel.add(iconActionButton(
+                "icons/DataPelanggan/trash-2.svg",
+                RED,
+                () -> deletePelanggan(item)
+        ));
+
+        return panel;
+    }
+
+    private JPanel iconActionButton(
+            String iconPath,
+            Color color,
+            Runnable action
+    ) {
+        RoundedPanel btn = new RoundedPanel(12, CARD);
+        btn.setRoundedBorder(BORDER, 1);
+        btn.setPreferredSize(new Dimension(32, 32));
+        btn.setMinimumSize(new Dimension(32, 32));
+        btn.setLayout(new GridBagLayout());
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        btn.add(svgIcon(iconPath, 14, 14, color));
+
+        btn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                action.run();
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                btn.setBackground(new Color(248, 248, 248));
+                btn.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                btn.setBackground(CARD);
+                btn.repaint();
+            }
+        });
 
         return btn;
     }
 
-    // =========================================================
-    // SVG ICON
-    // =========================================================
+    private void showFormDialog(OwnerPelangganItem item) {
+        boolean editMode = item != null;
+
+        JDialog dialog = new JDialog(
+                SwingUtilities.getWindowAncestor(this),
+                editMode ? "Edit Pelanggan" : "Tambah Pelanggan",
+                Dialog.ModalityType.APPLICATION_MODAL
+        );
+
+        dialog.setSize(430, 470);
+        dialog.setLocationRelativeTo(this);
+        dialog.setResizable(false);
+
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBackground(Color.WHITE);
+        root.setBorder(new EmptyBorder(24, 24, 22, 24));
+
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+
+        JPanel titleBox = new JPanel();
+        titleBox.setOpaque(false);
+        titleBox.setLayout(new BoxLayout(titleBox, BoxLayout.Y_AXIS));
+
+        JLabel title = new JLabel(editMode ? "Edit Pelanggan" : "Tambah Pelanggan");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        title.setForeground(TEXT);
+
+        JLabel subtitle = new JLabel("Isi data pelanggan dengan benar");
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        subtitle.setForeground(MUTED);
+
+        titleBox.add(title);
+        titleBox.add(Box.createVerticalStrut(4));
+        titleBox.add(subtitle);
+
+        JButton close = new JButton("×");
+        close.setFocusPainted(false);
+        close.setBorderPainted(false);
+        close.setContentAreaFilled(false);
+        close.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        close.setForeground(MUTED);
+        close.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        close.addActionListener(e -> dialog.dispose());
+
+        header.add(titleBox, BorderLayout.WEST);
+        header.add(close, BorderLayout.EAST);
+
+        JPanel form = new JPanel();
+        form.setOpaque(false);
+        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+        form.setBorder(new EmptyBorder(22, 0, 0, 0));
+
+        JTextField namaField = createDialogTextField();
+        JTextField hpField = createDialogTextField();
+        JTextArea catatanArea = createDialogTextArea();
+
+        if (editMode) {
+            namaField.setText(item.getNamaPelanggan());
+            hpField.setText(emptyString(item.getNoHp()));
+            catatanArea.setText(emptyString(item.getCatatanPreferensi()));
+        }
+
+        JScrollPane catatanScroll = new JScrollPane(catatanArea);
+        catatanScroll.setBorder(BorderFactory.createLineBorder(BORDER));
+        catatanScroll.setPreferredSize(new Dimension(100, 100));
+        catatanScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+
+        form.add(createFormGroup("Nama Pelanggan", namaField));
+        form.add(Box.createVerticalStrut(14));
+        form.add(createFormGroup("Nomor HP", hpField));
+        form.add(Box.createVerticalStrut(14));
+        form.add(createFormGroup("Catatan Preferensi", catatanScroll));
+
+        JPanel footer = new JPanel(new GridLayout(1, 2, 12, 0));
+        footer.setOpaque(false);
+        footer.setBorder(new EmptyBorder(22, 0, 0, 0));
+
+        JButton cancelButton = createDialogOutlineButton("Batal");
+        JButton saveButton = createDialogDarkButton(editMode ? "Simpan Perubahan" : "Tambah Pelanggan");
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        saveButton.addActionListener(e -> {
+            try {
+                String nama = namaField.getText().trim();
+                String hp = hpField.getText().trim();
+                String catatan = catatanArea.getText().trim();
+
+                if (editMode) {
+                    pelangganService.updatePelanggan(
+                            item.getIdPelanggan(),
+                            nama,
+                            hp,
+                            catatan
+                    );
+                } else {
+                    pelangganService.tambahPelanggan(
+                            nama,
+                            hp,
+                            catatan
+                    );
+                }
+
+                dialog.dispose();
+                loadData();
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        editMode
+                                ? "Pelanggan berhasil diperbarui."
+                                : "Pelanggan berhasil ditambahkan.",
+                        "Berhasil",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(
+                        dialog,
+                        ex.getMessage(),
+                        "Validasi Gagal",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        });
+
+        footer.add(cancelButton);
+        footer.add(saveButton);
+
+        root.add(header, BorderLayout.NORTH);
+        root.add(form, BorderLayout.CENTER);
+        root.add(footer, BorderLayout.SOUTH);
+
+        dialog.setContentPane(root);
+        dialog.setVisible(true);
+    }
+
+    private JPanel createFormGroup(String labelText, JComponent field) {
+        JPanel group = new JPanel();
+        group.setOpaque(false);
+        group.setLayout(new BoxLayout(group, BoxLayout.Y_AXIS));
+
+        JLabel label = new JLabel(labelText);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        label.setForeground(TEXT);
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        field.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        group.add(label);
+        group.add(Box.createVerticalStrut(7));
+        group.add(field);
+
+        return group;
+    }
+
+    private JTextField createDialogTextField() {
+        JTextField field = new JTextField();
+
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        field.setForeground(TEXT);
+        field.setBackground(Color.WHITE);
+        field.setCaretColor(TEXT);
+
+        field.setPreferredSize(new Dimension(100, 44));
+        field.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+
+        field.setBorder(
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(BORDER),
+                        new EmptyBorder(0, 12, 0, 12)
+                )
+        );
+
+        return field;
+    }
+
+    private JTextArea createDialogTextArea() {
+        JTextArea area = new JTextArea();
+        area.setRows(4);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        area.setForeground(TEXT);
+        area.setCaretColor(TEXT);
+        area.setBorder(new EmptyBorder(10, 12, 10, 12));
+
+        return area;
+    }
+
+    private JButton createDialogDarkButton(String text) {
+        JButton button = new JButton(text);
+
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setBackground(DARK);
+        button.setForeground(Color.WHITE);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(100, 46));
+
+        return button;
+    }
+
+    private JButton createDialogOutlineButton(String text) {
+        JButton button = new JButton(text);
+
+        button.setFocusPainted(false);
+        button.setBackground(Color.WHITE);
+        button.setForeground(TEXT);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(100, 46));
+        button.setBorder(BorderFactory.createLineBorder(BORDER));
+
+        return button;
+    }
+
+    private void deletePelanggan(OwnerPelangganItem item) {
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Hapus pelanggan \"" + item.getNamaPelanggan() + "\"?",
+                "Konfirmasi",
+                JOptionPane.YES_NO_OPTION
+        );
+
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            pelangganService.hapusPelanggan(item);
+            loadData();
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Pelanggan berhasil dihapus.",
+                    "Berhasil",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    e.getMessage(),
+                    "Tidak Bisa Dihapus",
+                    JOptionPane.WARNING_MESSAGE
+            );
+        }
+    }
+
+    private void renderPagination() {
+        pagination.removeAll();
+
+        int totalPage = Math.max(
+                1,
+                (int) Math.ceil((double) totalData / pageSize)
+        );
+
+        pagination.add(pageButton(
+                "<",
+                false,
+                currentPage > 1,
+                () -> {
+                    currentPage--;
+                    loadData();
+                }
+        ));
+
+        int start = Math.max(1, currentPage - 2);
+        int end = Math.min(totalPage, currentPage + 2);
+
+        for (int i = start; i <= end; i++) {
+            int page = i;
+
+            pagination.add(pageButton(
+                    String.valueOf(page),
+                    currentPage == page,
+                    true,
+                    () -> {
+                        currentPage = page;
+                        loadData();
+                    }
+            ));
+        }
+
+        pagination.add(pageButton(
+                ">",
+                false,
+                currentPage < totalPage,
+                () -> {
+                    currentPage++;
+                    loadData();
+                }
+        ));
+
+        pagination.revalidate();
+        pagination.repaint();
+    }
+
+    private JPanel pageButton(
+            String text,
+            boolean active,
+            boolean enabled,
+            Runnable action
+    ) {
+        RoundedPanel panel = new RoundedPanel(
+                10,
+                active ? DARK : CARD
+        );
+
+        panel.setRoundedBorder(BORDER, active ? 0 : 1);
+        panel.setPreferredSize(new Dimension(36, 36));
+        panel.setLayout(new GridBagLayout());
+        panel.setCursor(
+                enabled
+                        ? new Cursor(Cursor.HAND_CURSOR)
+                        : Cursor.getDefaultCursor()
+        );
+
+        JLabel label = new JLabel(text);
+        label.setForeground(
+                active
+                        ? Color.WHITE
+                        : enabled ? TEXT : MUTED
+        );
+
+        label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        panel.add(label);
+
+        if (enabled) {
+            panel.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    action.run();
+                }
+            });
+        }
+
+        return panel;
+    }
+
+    private JButton createDarkButton(
+            String text,
+            String iconPath,
+            Runnable action
+    ) {
+        JButton btn = new JButton(text);
+
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setBackground(DARK);
+        btn.setForeground(Color.WHITE);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btn.setBorder(new EmptyBorder(12, 18, 12, 18));
+
+        btn.setIcon(svgIcon(iconPath, 15, 15, Color.WHITE).getIcon());
+        btn.addActionListener(e -> action.run());
+
+        return btn;
+    }
 
     private JLabel svgIcon(
             String path,
-            int w,
-            int h,
+            int width,
+            int height,
             Color color
     ) {
-
-        JLabel label =
-                new JLabel();
+        JLabel label = new JLabel();
 
         try {
-
-            FlatSVGIcon icon =
-                    new FlatSVGIcon(
-                            path,
-                            w,
-                            h
-                    );
+            FlatSVGIcon icon = new FlatSVGIcon(path, width, height);
 
             icon.setColorFilter(
-                    new FlatSVGIcon.ColorFilter(
-                            c -> color
-                    )
+                    new FlatSVGIcon.ColorFilter(c -> color)
             );
 
             label.setIcon(icon);
 
         } catch (Exception e) {
-
-            System.out.println(
-                    "Gagal load icon : " + path
-            );
+            label.setPreferredSize(new Dimension(width, height));
+            System.out.println("Gagal load icon : " + path);
         }
 
         return label;
     }
 
-    // =========================================================
-    // ROUNDED PANEL
-    // =========================================================
+    private String formatDate(OwnerPelangganItem item) {
+        if (item.getTanggalDaftar() == null) {
+            return "-";
+        }
+
+        return item.getTanggalDaftar().format(
+                DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.of("id", "ID"))
+        );
+    }
+
+    private String emptyDash(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return "-";
+        }
+
+        return value;
+    }
+
+    private String emptyString(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return value;
+    }
+
+    private abstract static class SimpleDocumentListener implements DocumentListener {
+        public abstract void update();
+
+        @Override
+        public void insertUpdate(DocumentEvent e) {
+            update();
+        }
+
+        @Override
+        public void removeUpdate(DocumentEvent e) {
+            update();
+        }
+
+        @Override
+        public void changedUpdate(DocumentEvent e) {
+            update();
+        }
+    }
 
     static class RoundedPanel extends JPanel {
 
         private final int radius;
+        private Color bg;
+        private Color borderColor;
+        private int borderWidth;
 
-        private final Color bg;
-
-        public RoundedPanel(
-                int radius,
-                Color bg
-        ) {
-
+        public RoundedPanel(int radius, Color bg) {
             this.radius = radius;
-
             this.bg = bg;
-
             setOpaque(false);
         }
 
         @Override
-        protected void paintComponent(Graphics g) {
+        public void setBackground(Color bg) {
+            this.bg = bg;
+            repaint();
+        }
 
+        public void setRoundedBorder(Color borderColor, int borderWidth) {
+            this.borderColor = borderColor;
+            this.borderWidth = borderWidth;
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
             Graphics2D g2 =
                     (Graphics2D) g.create();
 
@@ -1059,43 +1108,56 @@ public class PelangganPage extends JPanel {
                     RenderingHints.VALUE_ANTIALIAS_ON
             );
 
-            g2.setColor(bg);
+            if (borderColor != null && borderWidth > 0) {
+                g2.setColor(borderColor);
+                g2.fillRoundRect(
+                        0,
+                        0,
+                        getWidth(),
+                        getHeight(),
+                        radius,
+                        radius
+                );
 
-            g2.fillRoundRect(
-                    0,
-                    0,
-                    getWidth(),
-                    getHeight(),
-                    radius,
-                    radius
-            );
+                g2.setColor(bg);
+                g2.fillRoundRect(
+                        borderWidth,
+                        borderWidth,
+                        getWidth() - borderWidth * 2,
+                        getHeight() - borderWidth * 2,
+                        radius,
+                        radius
+                );
+            } else {
+                g2.setColor(bg);
+                g2.fillRoundRect(
+                        0,
+                        0,
+                        getWidth(),
+                        getHeight(),
+                        radius,
+                        radius
+                );
+            }
 
             g2.dispose();
-
             super.paintComponent(g);
         }
     }
-
-    // =========================================================
-    // SHADOW PANEL
-    // =========================================================
 
     static class ShadowPanel extends JPanel {
 
         private final int radius;
 
         public ShadowPanel(int radius) {
-
             this.radius = radius;
 
             setOpaque(false);
-
             setBackground(Color.WHITE);
         }
 
         @Override
         protected void paintComponent(Graphics g) {
-
             Graphics2D g2 =
                     (Graphics2D) g.create();
 
@@ -1104,15 +1166,13 @@ public class PelangganPage extends JPanel {
                     RenderingHints.VALUE_ANTIALIAS_ON
             );
 
-            g2.setColor(
-                    new Color(0,0,0,10)
-            );
+            g2.setColor(new Color(0, 0, 0, 8));
 
             g2.fillRoundRect(
                     4,
-                    4,
-                    getWidth()-8,
-                    getHeight()-8,
+                    6,
+                    getWidth() - 8,
+                    getHeight() - 10,
                     radius,
                     radius
             );
@@ -1122,25 +1182,24 @@ public class PelangganPage extends JPanel {
             g2.fillRoundRect(
                     0,
                     0,
-                    getWidth()-8,
-                    getHeight()-8,
+                    getWidth() - 8,
+                    getHeight() - 10,
                     radius,
                     radius
             );
 
-            g2.setColor(BORDER);
+            g2.setColor(new Color(236, 236, 236));
 
             g2.drawRoundRect(
                     0,
                     0,
-                    getWidth()-9,
-                    getHeight()-9,
+                    getWidth() - 9,
+                    getHeight() - 11,
                     radius,
                     radius
             );
 
             g2.dispose();
-
             super.paintComponent(g);
         }
     }

@@ -1,13 +1,22 @@
 package com.barberpro.ui.dashboard.pages.kasir;
 
+import com.barberpro.model.PaymentBooking;
+import com.barberpro.service.ProsesBayarService;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Locale;
 
 public class ProsesBayarPage extends JPanel {
 
@@ -20,24 +29,67 @@ public class ProsesBayarPage extends JPanel {
     private final Color SUCCESS = new Color(34, 197, 94);
     private final Color SUCCESS_BG = new Color(240, 253, 244);
     private final Color SOFT = new Color(246, 246, 246);
+    private final Color WARNING_BG = new Color(255, 247, 237);
+    private final Color WARNING = new Color(245, 158, 11);
 
-    private String selectedMethod = "Tunai";
+    private final ProsesBayarService prosesBayarService = new ProsesBayarService();
 
-    private JPanel rootMain;
+    /*
+     * Value ini yang dikirim ke database.
+     * Database hanya menerima CASH, QRIS, TRANSFER.
+     */
+    private String selectedPaymentMethod = "CASH";
+
+    private PaymentBooking selectedBooking;
+    private List<PaymentBooking> bookingSiapBayar;
+
     private JPanel centerWrapper;
     private JPanel summaryWrapper;
     private JPanel methodList;
 
+    private JComboBox<PaymentBooking> bookingCombo;
+    private JTextField nominalField;
+
+    private JLabel detailNamaLabel;
+    private JLabel detailHpLabel;
+    private JLabel detailBookingLabel;
+    private JLabel detailLayananLabel;
+    private JLabel detailHargaLabel;
+    private JLabel detailSubtotalLabel;
+    private JLabel detailTotalLabel;
+
+    private JLabel cashTotalLabel;
+    private JLabel cashKembalianLabel;
+
+    private JLabel summaryMetodeLabel;
+    private JLabel summaryBookingLabel;
+    private JLabel summaryPelangganLabel;
+    private JLabel summaryTotalLabel;
+    private JLabel summaryNominalLabel;
+    private JLabel summaryKembalianLabel;
+
     public ProsesBayarPage() {
         setLayout(new BorderLayout());
         setBackground(BG);
+
         buildUI();
+        loadBookingSiapBayar();
+    }
+
+    public ProsesBayarPage(int idBooking) {
+        setLayout(new BorderLayout());
+        setBackground(BG);
+
+        buildUI();
+        loadBookingById(idBooking);
     }
 
     private void buildUI() {
-        JPanel content = new JPanel(new BorderLayout(0, 28));
+        removeAll();
+
+        JPanel content = new JPanel(new BorderLayout(0, 22));
         content.setOpaque(false);
-        content.setBorder(new EmptyBorder(34, 34, 30, 34));
+        content.setBorder(new EmptyBorder(28, 32, 26, 32));
 
         content.add(createHeader(), BorderLayout.NORTH);
         content.add(createMainContent(), BorderLayout.CENTER);
@@ -51,6 +103,9 @@ public class ProsesBayarPage extends JPanel {
         scroll.getVerticalScrollBar().setUnitIncrement(18);
 
         add(scroll, BorderLayout.CENTER);
+
+        revalidate();
+        repaint();
     }
 
     private JPanel createHeader() {
@@ -61,22 +116,22 @@ public class ProsesBayarPage extends JPanel {
         left.setOpaque(false);
         left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
 
-        JLabel title = new JLabel("Proses Bayar");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 34));
+        JLabel title = new JLabel("Pembayaran Booking");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 32));
         title.setForeground(TEXT);
 
-        JLabel subtitle = new JLabel("Pilih metode pembayaran dan proses transaksi");
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        JLabel subtitle = new JLabel("Pilih booking yang siap dibayar, cek detail, lalu selesaikan transaksi.");
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subtitle.setForeground(MUTED);
 
         left.add(title);
         left.add(Box.createVerticalStrut(6));
         left.add(subtitle);
 
-        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 14, 0));
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
         right.setOpaque(false);
-        right.add(createDateCard("icons/ProsesBayar/calendar.svg", "Jumat, 15 Mei 2026"));
-        right.add(createDateCard("icons/ProsesBayar/clock-3.svg", "21:35"));
+        right.add(createDateCard("icons/Dashboard/calendar.svg", getTodayText()));
+        right.add(createDateCard("icons/KasirPOS/clock-3.svg", getTimeText()));
 
         header.add(left, BorderLayout.WEST);
         header.add(right, BorderLayout.EAST);
@@ -85,20 +140,20 @@ public class ProsesBayarPage extends JPanel {
     }
 
     private JPanel createMainContent() {
-        rootMain = new JPanel(
+        JPanel rootMain = new JPanel(
                 new MigLayout(
-                        "insets 0, gap 24",
-                        "[grow 33, fill][grow 34, fill][grow 33, fill]",
+                        "insets 0, gap 20",
+                        "[grow 34, fill][grow 33, fill][grow 33, fill]",
                         "[grow, fill]"
                 )
         );
 
         rootMain.setOpaque(false);
 
-        centerWrapper = new JPanel(new BorderLayout(0, 22));
+        centerWrapper = new JPanel(new BorderLayout(0, 20));
         centerWrapper.setOpaque(false);
         centerWrapper.add(createPaymentMethodSection(), BorderLayout.NORTH);
-        centerWrapper.add(createCashSection(), BorderLayout.CENTER);
+        centerWrapper.add(createPaymentInputSection(), BorderLayout.CENTER);
 
         summaryWrapper = new JPanel(new BorderLayout());
         summaryWrapper.setOpaque(false);
@@ -112,99 +167,202 @@ public class ProsesBayarPage extends JPanel {
     }
 
     // =========================================================
+    // LOAD DATA
+    // =========================================================
+
+    private void loadBookingSiapBayar() {
+        SwingWorker<List<PaymentBooking>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected List<PaymentBooking> doInBackground() throws Exception {
+                return prosesBayarService.getBookingSiapBayar();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    bookingSiapBayar = get();
+
+                    bookingCombo.removeAllItems();
+
+                    if (bookingSiapBayar == null || bookingSiapBayar.isEmpty()) {
+                        selectedBooking = null;
+                        refreshAllData();
+
+                        JOptionPane.showMessageDialog(
+                                ProsesBayarPage.this,
+                                "Belum ada booking yang menunggu pembayaran.",
+                                "Info",
+                                JOptionPane.INFORMATION_MESSAGE
+                        );
+
+                        return;
+                    }
+
+                    for (PaymentBooking booking : bookingSiapBayar) {
+                        bookingCombo.addItem(booking);
+                    }
+
+                    bookingCombo.setSelectedIndex(0);
+                    selectedBooking = bookingCombo.getItemAt(0);
+
+                    refreshAllData();
+
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(
+                            ProsesBayarPage.this,
+                            "Gagal memuat data pembayaran: " + e.getMessage(),
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                }
+            }
+        };
+
+        worker.execute();
+    }
+
+    private void loadBookingById(int idBooking) {
+        SwingWorker<PaymentBooking, Void> worker = new SwingWorker<>() {
+            @Override
+            protected PaymentBooking doInBackground() throws Exception {
+                return prosesBayarService.getBookingById(idBooking);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    selectedBooking = get();
+
+                    bookingCombo.removeAllItems();
+
+                    if (selectedBooking != null) {
+                        bookingCombo.addItem(selectedBooking);
+                        bookingCombo.setSelectedItem(selectedBooking);
+                    }
+
+                    refreshAllData();
+
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(
+                            ProsesBayarPage.this,
+                            "Gagal memuat booking: " + e.getMessage(),
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                }
+            }
+        };
+
+        worker.execute();
+    }
+
+    private void refreshAllData() {
+        refreshDetailData();
+        refreshCashData();
+        refreshSummaryData();
+    }
+
+    // =========================================================
     // DETAIL TRANSAKSI
     // =========================================================
 
     private JPanel createDetailSection() {
         ShadowPanel card = new ShadowPanel(30);
-        card.setLayout(new BorderLayout(0, 24));
-        card.setBorder(new EmptyBorder(28, 28, 28, 28));
+        card.setLayout(new BorderLayout(0, 20));
+        card.setBorder(new EmptyBorder(24, 24, 24, 24));
 
-        JLabel title = sectionTitle("Detail Transaksi");
+        JLabel title = sectionTitle("Detail Booking");
 
         JPanel body = new JPanel();
         body.setOpaque(false);
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 
+        bookingCombo = new JComboBox<>();
+        bookingCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        bookingCombo.setBackground(CARD);
+        bookingCombo.setForeground(TEXT);
+        bookingCombo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+
+        bookingCombo.addActionListener(e -> {
+            Object selected = bookingCombo.getSelectedItem();
+
+            if (selected instanceof PaymentBooking booking) {
+                selectedBooking = booking;
+                refreshAllData();
+            }
+        });
+
+        body.add(smallLabel("Booking Siap Bayar"));
+        body.add(Box.createVerticalStrut(8));
+        body.add(bookingCombo);
+        body.add(Box.createVerticalStrut(22));
+        body.add(separator());
+        body.add(Box.createVerticalStrut(20));
+
         body.add(createCustomerInfo());
-        body.add(Box.createVerticalStrut(26));
-        body.add(separator());
         body.add(Box.createVerticalStrut(22));
-
-        body.add(smallLabel("No. Transaksi"));
-
-        JLabel trx = new JLabel("TRX-0013");
-        trx.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        trx.setForeground(TEXT);
-
-        body.add(Box.createVerticalStrut(5));
-        body.add(trx);
-
-        body.add(Box.createVerticalStrut(26));
         body.add(separator());
+        body.add(Box.createVerticalStrut(18));
+
+        body.add(smallLabel("Nomor Booking"));
+        body.add(Box.createVerticalStrut(6));
+
+        detailBookingLabel = new JLabel("-");
+        detailBookingLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        detailBookingLabel.setForeground(TEXT);
+
+        body.add(detailBookingLabel);
+
         body.add(Box.createVerticalStrut(22));
+        body.add(separator());
+        body.add(Box.createVerticalStrut(18));
 
         body.add(smallLabel("Layanan"));
-        body.add(Box.createVerticalStrut(16));
-        body.add(rowText("Haircut", "Rp 70.000", false, false));
-        body.add(Box.createVerticalStrut(16));
-        body.add(rowText("Hair Wash", "Rp 30.000", false, false));
+        body.add(Box.createVerticalStrut(12));
 
-        body.add(Box.createVerticalStrut(32));
+        JPanel serviceRow = new JPanel(new BorderLayout());
+        serviceRow.setOpaque(false);
+        serviceRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
+
+        detailLayananLabel = new JLabel("-");
+        detailLayananLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        detailLayananLabel.setForeground(MUTED);
+
+        detailHargaLabel = new JLabel("Rp 0");
+        detailHargaLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        detailHargaLabel.setForeground(TEXT);
+
+        serviceRow.add(detailLayananLabel, BorderLayout.WEST);
+        serviceRow.add(detailHargaLabel, BorderLayout.EAST);
+
+        body.add(serviceRow);
+        body.add(Box.createVerticalStrut(24));
         body.add(separator());
+        body.add(Box.createVerticalStrut(18));
+
+        detailSubtotalLabel = new JLabel("Rp 0");
+        body.add(rowText("Subtotal", detailSubtotalLabel, false, false));
+        body.add(Box.createVerticalStrut(12));
+
+        body.add(rowText("Diskon", new JLabel("Rp 0"), false, false));
         body.add(Box.createVerticalStrut(22));
-
-        body.add(rowText("Subtotal", "Rp 100.000", false, false));
-        body.add(Box.createVerticalStrut(16));
-        body.add(rowText("Diskon", "Rp 0", false, false));
-
-        body.add(Box.createVerticalStrut(28));
         body.add(separator());
-        body.add(Box.createVerticalStrut(26));
+        body.add(Box.createVerticalStrut(20));
 
-        JPanel total = new JPanel(
-                new MigLayout(
-                        "insets 0, fillx",
-                        "[left, grow][right]",
-                        "[]"
-                )
-        );
-
+        JPanel total = new JPanel(new BorderLayout());
         total.setOpaque(false);
-
-        total.setMaximumSize(
-                new Dimension(
-                        Integer.MAX_VALUE,
-                        52
-                )
-        );
+        total.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
 
         JLabel totalLabel = new JLabel("Total Bayar");
-
-        totalLabel.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.BOLD,
-                        21
-                )
-        );
-
+        totalLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         totalLabel.setForeground(TEXT);
 
-        JLabel totalValue = new JLabel("Rp 100.000");
+        detailTotalLabel = new JLabel("Rp 0");
+        detailTotalLabel.setFont(new Font("Segoe UI", Font.BOLD, 23));
+        detailTotalLabel.setForeground(TEXT);
 
-        totalValue.setFont(
-                new Font(
-                        "Segoe UI",
-                        Font.BOLD,
-                        24
-                )
-        );
-
-        totalValue.setForeground(TEXT);
-
-        total.add(totalLabel, "growx");
-        total.add(totalValue, "align right");
+        total.add(totalLabel, BorderLayout.WEST);
+        total.add(detailTotalLabel, BorderLayout.EAST);
 
         body.add(total);
 
@@ -215,15 +373,15 @@ public class ProsesBayarPage extends JPanel {
     }
 
     private JPanel createCustomerInfo() {
-        JPanel panel = new JPanel(new BorderLayout(16, 0));
+        JPanel panel = new JPanel(new BorderLayout(14, 0));
         panel.setOpaque(false);
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
 
-        CirclePanel avatar = new CirclePanel(80);
+        CirclePanel avatar = new CirclePanel();
         avatar.setBackground(SOFT);
-        avatar.setFixedSize(58, 58);
+        avatar.setFixedSize(56, 56);
         avatar.setLayout(new GridBagLayout());
-        avatar.add(svgIcon("icons/ProsesBayar/user-round.svg", 28, 28, TEXT));
+        avatar.add(svgIcon("icons/KasirPOS/user-round.svg", 26, 26, TEXT));
 
         JPanel text = new JPanel();
         text.setOpaque(false);
@@ -231,24 +389,47 @@ public class ProsesBayarPage extends JPanel {
 
         JLabel customerLabel = smallLabel("Pelanggan");
 
-        JLabel name = new JLabel("Rian Maulana");
-        name.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        name.setForeground(TEXT);
+        detailNamaLabel = new JLabel("-");
+        detailNamaLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        detailNamaLabel.setForeground(TEXT);
 
-        JLabel phone = new JLabel("0821-0376-6432");
-        phone.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        phone.setForeground(MUTED);
+        detailHpLabel = new JLabel("-");
+        detailHpLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        detailHpLabel.setForeground(MUTED);
 
         text.add(customerLabel);
         text.add(Box.createVerticalStrut(4));
-        text.add(name);
+        text.add(detailNamaLabel);
         text.add(Box.createVerticalStrut(4));
-        text.add(phone);
+        text.add(detailHpLabel);
 
         panel.add(avatar, BorderLayout.WEST);
         panel.add(text, BorderLayout.CENTER);
 
         return panel;
+    }
+
+    private void refreshDetailData() {
+        if (detailNamaLabel == null) return;
+
+        if (selectedBooking == null) {
+            detailNamaLabel.setText("-");
+            detailHpLabel.setText("-");
+            detailBookingLabel.setText("-");
+            detailLayananLabel.setText("-");
+            detailHargaLabel.setText("Rp 0");
+            detailSubtotalLabel.setText("Rp 0");
+            detailTotalLabel.setText("Rp 0");
+            return;
+        }
+
+        detailNamaLabel.setText(emptyDash(selectedBooking.getNamaPelanggan()));
+        detailHpLabel.setText(emptyDash(selectedBooking.getNoHp()));
+        detailBookingLabel.setText(emptyDash(selectedBooking.getKodeBooking()));
+        detailLayananLabel.setText(emptyDash(selectedBooking.getNamaLayanan()));
+        detailHargaLabel.setText(formatMoney(selectedBooking.getHarga()));
+        detailSubtotalLabel.setText(formatMoney(selectedBooking.getHarga()));
+        detailTotalLabel.setText(formatMoney(selectedBooking.getHarga()));
     }
 
     // =========================================================
@@ -257,10 +438,19 @@ public class ProsesBayarPage extends JPanel {
 
     private JPanel createPaymentMethodSection() {
         ShadowPanel card = new ShadowPanel(30);
-        card.setLayout(new BorderLayout(0, 22));
-        card.setBorder(new EmptyBorder(26, 26, 26, 26));
+        card.setLayout(new BorderLayout(0, 20));
+        card.setBorder(new EmptyBorder(24, 24, 24, 24));
+
+        JPanel titleBox = new JPanel();
+        titleBox.setOpaque(false);
+        titleBox.setLayout(new BoxLayout(titleBox, BoxLayout.Y_AXIS));
 
         JLabel title = sectionTitle("Metode Pembayaran");
+        JLabel subtitle = smallLabel("Pilih metode yang digunakan pelanggan.");
+
+        titleBox.add(title);
+        titleBox.add(Box.createVerticalStrut(5));
+        titleBox.add(subtitle);
 
         methodList = new JPanel();
         methodList.setOpaque(false);
@@ -268,29 +458,33 @@ public class ProsesBayarPage extends JPanel {
 
         refreshMethodCards();
 
-        card.add(title, BorderLayout.NORTH);
+        card.add(titleBox, BorderLayout.NORTH);
         card.add(methodList, BorderLayout.CENTER);
 
         return card;
     }
 
     private void refreshMethodCards() {
+        if (methodList == null) return;
+
         methodList.removeAll();
 
         methodList.add(createPaymentMethodCard(
                 "Tunai",
-                "Bayar dengan uang tunai",
-                "icons/ProsesBayar/banknote.svg",
-                selectedMethod.equals("Tunai")
+                "Pembayaran langsung menggunakan uang tunai.",
+                "CASH",
+                "icons/RiwayatTransaksi/banknote.svg",
+                selectedPaymentMethod.equals("CASH")
         ));
 
-        methodList.add(Box.createVerticalStrut(14));
+        methodList.add(Box.createVerticalStrut(12));
 
         methodList.add(createPaymentMethodCard(
                 "QRIS",
-                "Bayar menggunakan QRIS",
-                "icons/ProsesBayar/qr-code.svg",
-                selectedMethod.equals("QRIS")
+                "Pembayaran non-tunai menggunakan QRIS.",
+                "QRIS",
+                "icons/KasirPOS/credit-card.svg",
+                selectedPaymentMethod.equals("QRIS")
         ));
 
         methodList.revalidate();
@@ -298,30 +492,31 @@ public class ProsesBayarPage extends JPanel {
     }
 
     private JPanel createPaymentMethodCard(
-            String method,
+            String title,
             String desc,
+            String value,
             String iconPath,
             boolean selected
     ) {
         RoundedPanel card = new RoundedPanel(18);
         card.setBackground(selected ? new Color(250, 250, 250) : CARD);
         card.setRoundedBorder(selected ? DARK : BORDER, 1);
-        card.setLayout(new BorderLayout(16, 0));
-        card.setBorder(new EmptyBorder(16, 18, 16, 18));
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 82));
+        card.setLayout(new BorderLayout(14, 0));
+        card.setBorder(new EmptyBorder(14, 16, 14, 16));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 78));
         card.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         RoundedPanel iconBox = new RoundedPanel(14);
         iconBox.setBackground(new Color(245, 245, 245));
-        iconBox.setPreferredSize(new Dimension(46, 46));
+        iconBox.setPreferredSize(new Dimension(44, 44));
         iconBox.setLayout(new GridBagLayout());
-        iconBox.add(svgIcon(iconPath, 22, 22, TEXT));
+        iconBox.add(svgIcon(iconPath, 21, 21, TEXT));
 
         JPanel text = new JPanel();
         text.setOpaque(false);
         text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
 
-        JLabel name = new JLabel(method);
+        JLabel name = new JLabel(title);
         name.setFont(new Font("Segoe UI", Font.BOLD, 14));
         name.setForeground(TEXT);
 
@@ -331,7 +526,7 @@ public class ProsesBayarPage extends JPanel {
 
         text.add(Box.createVerticalGlue());
         text.add(name);
-        text.add(Box.createVerticalStrut(5));
+        text.add(Box.createVerticalStrut(4));
         text.add(description);
         text.add(Box.createVerticalGlue());
 
@@ -339,18 +534,23 @@ public class ProsesBayarPage extends JPanel {
         card.add(text, BorderLayout.CENTER);
 
         if (selected) {
-            CirclePanel check = new CirclePanel(100);
+            CirclePanel check = new CirclePanel();
             check.setBackground(DARK);
-            check.setFixedSize(34, 34);
+            check.setFixedSize(30, 30);
             check.setLayout(new GridBagLayout());
-            check.add(svgIcon("icons/ProsesBayar/check.svg", 15, 15, Color.WHITE));
+
+            JLabel checkText = new JLabel("✓");
+            checkText.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            checkText.setForeground(Color.WHITE);
+
+            check.add(checkText);
             card.add(check, BorderLayout.EAST);
         }
 
         card.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                selectedMethod = method;
+                selectedPaymentMethod = value;
                 refreshPageState();
             }
 
@@ -362,7 +562,10 @@ public class ProsesBayarPage extends JPanel {
 
             @Override
             public void mouseExited(MouseEvent e) {
-                card.setRoundedBorder(method.equals(selectedMethod) ? DARK : BORDER, 1);
+                card.setRoundedBorder(
+                        value.equals(selectedPaymentMethod) ? DARK : BORDER,
+                        1
+                );
                 card.repaint();
             }
         });
@@ -371,42 +574,68 @@ public class ProsesBayarPage extends JPanel {
     }
 
     // =========================================================
-    // PEMBAYARAN TUNAI / QRIS
+    // INPUT PEMBAYARAN
     // =========================================================
+
+    private JPanel createPaymentInputSection() {
+        if (selectedPaymentMethod.equals("CASH")) {
+            return createCashSection();
+        }
+
+        return createQrisSection();
+    }
 
     private JPanel createCashSection() {
         ShadowPanel card = new ShadowPanel(30);
-        card.setLayout(new BorderLayout(0, 24));
-        card.setBorder(new EmptyBorder(26, 26, 26, 26));
+        card.setLayout(new BorderLayout(0, 22));
+        card.setBorder(new EmptyBorder(24, 24, 24, 24));
+
+        JPanel titleBox = new JPanel();
+        titleBox.setOpaque(false);
+        titleBox.setLayout(new BoxLayout(titleBox, BoxLayout.Y_AXIS));
 
         JLabel title = sectionTitle("Pembayaran Tunai");
+        JLabel subtitle = smallLabel("Masukkan nominal uang yang diterima dari pelanggan.");
+
+        titleBox.add(title);
+        titleBox.add(Box.createVerticalStrut(5));
+        titleBox.add(subtitle);
 
         JPanel body = new JPanel();
         body.setOpaque(false);
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 
-        body.add(rowText("Total Bayar", "Rp 100.000", true, true));
-        body.add(Box.createVerticalStrut(22));
+        cashTotalLabel = new JLabel("Rp 0");
+        body.add(rowText("Total Bayar", cashTotalLabel, true, true));
+        body.add(Box.createVerticalStrut(20));
 
-        JPanel inputRow = new JPanel(new BorderLayout(18, 0));
-        inputRow.setOpaque(false);
-        inputRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 54));
-
-        JLabel inputLabel = new JLabel("Uang Diterima");
-        inputLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        inputLabel.setForeground(MUTED);
+        body.add(smallLabel("Uang Diterima"));
+        body.add(Box.createVerticalStrut(8));
 
         RoundedPanel inputBox = new RoundedPanel(14);
         inputBox.setBackground(CARD);
         inputBox.setRoundedBorder(BORDER, 1);
         inputBox.setLayout(new BorderLayout());
         inputBox.setBorder(new EmptyBorder(0, 16, 0, 16));
-        inputBox.setPreferredSize(new Dimension(180, 54));
-        JTextField input = new JTextField("150.000");
+        inputBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        inputBox.setPreferredSize(new Dimension(100, 50));
 
-        input.addKeyListener(new java.awt.event.KeyAdapter() {
+        nominalField = new JTextField("0");
+        nominalField.setBorder(null);
+        nominalField.setOpaque(false);
+        nominalField.setForeground(TEXT);
+        nominalField.setCaretColor(TEXT);
+        nominalField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+
+        nominalField.addKeyListener(new KeyAdapter() {
             @Override
-            public void keyTyped(java.awt.event.KeyEvent e) {
+            public void keyReleased(KeyEvent e) {
+                refreshCashData();
+                refreshSummaryData();
+            }
+
+            @Override
+            public void keyTyped(KeyEvent e) {
                 char c = e.getKeyChar();
 
                 if (!Character.isDigit(c) && c != '.' && c != '\b') {
@@ -414,65 +643,36 @@ public class ProsesBayarPage extends JPanel {
                 }
             }
         });
-        input.setBorder(null);
-        input.setOpaque(false);
-        input.setForeground(TEXT);
-        input.setCaretColor(TEXT);
-        input.setFont(new Font("Segoe UI", Font.PLAIN, 14));
 
-        inputBox.add(input, BorderLayout.CENTER);
+        inputBox.add(nominalField, BorderLayout.CENTER);
+        body.add(inputBox);
 
-        inputRow.add(inputLabel, BorderLayout.WEST);
-        inputRow.add(inputBox, BorderLayout.EAST);
-
-        body.add(inputRow);
-        body.add(Box.createVerticalStrut(28));
-        body.add(dashedSeparator());
         body.add(Box.createVerticalStrut(24));
+        body.add(dashedSeparator());
+        body.add(Box.createVerticalStrut(22));
 
-        JPanel change = new JPanel(new BorderLayout());
-        change.setOpaque(false);
-        change.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+        cashKembalianLabel = new JLabel("Rp 0");
+        body.add(rowText("Kembalian", cashKembalianLabel, true, true));
 
-        JLabel changeLabel = new JLabel("Kembalian");
-        changeLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        changeLabel.setForeground(TEXT);
+        body.add(Box.createVerticalStrut(18));
 
-        JLabel changeValue = new JLabel("Rp 50.000");
-        changeValue.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        changeValue.setForeground(SUCCESS);
+        RoundedPanel noteBox = new RoundedPanel(18);
+        noteBox.setBackground(SUCCESS_BG);
+        noteBox.setLayout(new BorderLayout(12, 0));
+        noteBox.setBorder(new EmptyBorder(14, 16, 14, 16));
+        noteBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
 
-        change.add(changeLabel, BorderLayout.WEST);
-        change.add(changeValue, BorderLayout.EAST);
+        noteBox.add(svgIcon("icons/KasirPOS/receipt-text.svg", 22, 22, SUCCESS), BorderLayout.WEST);
 
-        body.add(change);
-        body.add(Box.createVerticalStrut(32));
+        JLabel note = new JLabel("Cek nominal dan kembalian sebelum menyelesaikan pembayaran.");
+        note.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        note.setForeground(TEXT);
 
-        RoundedButton confirm = createDarkButton("Konfirmasi Pembayaran", 16);
+        noteBox.add(note, BorderLayout.CENTER);
 
-        JPanel confirmWrap = new JPanel(new BorderLayout());
+        body.add(noteBox);
 
-        confirmWrap.setOpaque(false);
-
-        confirmWrap.setMaximumSize(
-                new Dimension(
-                        Integer.MAX_VALUE,
-                        56
-                )
-        );
-
-        confirmWrap.setPreferredSize(
-                new Dimension(
-                        100,
-                        56
-                )
-        );
-
-        confirmWrap.add(confirm, BorderLayout.CENTER);
-
-        body.add(confirmWrap);
-
-        card.add(title, BorderLayout.NORTH);
+        card.add(titleBox, BorderLayout.NORTH);
         card.add(body, BorderLayout.CENTER);
 
         return card;
@@ -480,10 +680,19 @@ public class ProsesBayarPage extends JPanel {
 
     private JPanel createQrisSection() {
         ShadowPanel card = new ShadowPanel(30);
-        card.setLayout(new BorderLayout(0, 24));
-        card.setBorder(new EmptyBorder(26, 26, 26, 26));
+        card.setLayout(new BorderLayout(0, 22));
+        card.setBorder(new EmptyBorder(24, 24, 24, 24));
+
+        JPanel titleBox = new JPanel();
+        titleBox.setOpaque(false);
+        titleBox.setLayout(new BoxLayout(titleBox, BoxLayout.Y_AXIS));
 
         JLabel title = sectionTitle("Pembayaran QRIS");
+        JLabel subtitle = smallLabel("Minta pelanggan scan QRIS, lalu selesaikan pembayaran dari ringkasan.");
+
+        titleBox.add(title);
+        titleBox.add(Box.createVerticalStrut(5));
+        titleBox.add(subtitle);
 
         JPanel body = new JPanel();
         body.setOpaque(false);
@@ -492,46 +701,83 @@ public class ProsesBayarPage extends JPanel {
         RoundedPanel qrBox = new RoundedPanel(24);
         qrBox.setBackground(new Color(250, 250, 250));
         qrBox.setRoundedBorder(BORDER, 1);
-        qrBox.setLayout(new GridBagLayout());
+        qrBox.setLayout(new BorderLayout());
+        qrBox.setBorder(new EmptyBorder(22, 22, 22, 22));
         qrBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 190));
         qrBox.setPreferredSize(new Dimension(100, 190));
-        qrBox.add(svgIcon("icons/ProsesBayar/qr-code.svg", 96, 96, TEXT));
 
-        JLabel total = new JLabel("Rp 100.000");
-        total.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        JPanel qrLeft = new JPanel(new GridBagLayout());
+        qrLeft.setOpaque(false);
+        qrLeft.setPreferredSize(new Dimension(120, 120));
+        qrLeft.add(svgIcon("icons/KasirPOS/credit-card.svg", 82, 82, TEXT));
+
+        JPanel qrText = new JPanel();
+        qrText.setOpaque(false);
+        qrText.setLayout(new BoxLayout(qrText, BoxLayout.Y_AXIS));
+
+        JLabel amountLabel = smallLabel("Total Pembayaran");
+        JLabel total = new JLabel(getSelectedTotalText());
+        total.setFont(new Font("Segoe UI", Font.BOLD, 25));
         total.setForeground(TEXT);
-        total.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel status = new JLabel("Menunggu Pembayaran");
-        status.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        JLabel status = new JLabel("Menunggu konfirmasi pembayaran");
+        status.setFont(new Font("Segoe UI", Font.BOLD, 14));
         status.setForeground(TEXT);
-        status.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel note = new JLabel("Silakan scan QR untuk melakukan pembayaran");
-        note.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        JLabel note = new JLabel("Setelah pelanggan membayar, klik tombol di Ringkasan Pembayaran.");
+        note.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         note.setForeground(MUTED);
-        note.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        RoundedButton paid = createDarkButton("Saya Sudah Bayar", 16);
-        paid.setPreferredSize(new Dimension(100, 56));
-        paid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 56));
-        paid.setAlignmentX(Component.LEFT_ALIGNMENT);
+        qrText.add(amountLabel);
+        qrText.add(Box.createVerticalStrut(8));
+        qrText.add(total);
+        qrText.add(Box.createVerticalStrut(16));
+        qrText.add(status);
+        qrText.add(Box.createVerticalStrut(6));
+        qrText.add(note);
+
+        qrBox.add(qrLeft, BorderLayout.WEST);
+        qrBox.add(qrText, BorderLayout.CENTER);
 
         body.add(qrBox);
-        body.add(Box.createVerticalStrut(24));
-        body.add(total);
-        body.add(Box.createVerticalStrut(12));
-        body.add(status);
-        body.add(Box.createVerticalStrut(6));
-        body.add(note);
-        body.add(Box.createVerticalGlue());
-        body.add(Box.createVerticalStrut(24));
-        body.add(paid);
+        body.add(Box.createVerticalStrut(18));
 
-        card.add(title, BorderLayout.NORTH);
+        RoundedPanel warningBox = new RoundedPanel(18);
+        warningBox.setBackground(WARNING_BG);
+        warningBox.setLayout(new BorderLayout(12, 0));
+        warningBox.setBorder(new EmptyBorder(14, 16, 14, 16));
+        warningBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
+
+        warningBox.add(svgIcon("icons/KasirPOS/clock-3.svg", 22, 22, WARNING), BorderLayout.WEST);
+
+        JLabel warning = new JLabel("Pastikan pembayaran QRIS sudah masuk sebelum menyelesaikan transaksi.");
+        warning.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        warning.setForeground(TEXT);
+
+        warningBox.add(warning, BorderLayout.CENTER);
+
+        body.add(warningBox);
+
+        card.add(titleBox, BorderLayout.NORTH);
         card.add(body, BorderLayout.CENTER);
 
         return card;
+    }
+
+    private void refreshCashData() {
+        if (cashTotalLabel == null || cashKembalianLabel == null) return;
+
+        BigDecimal total = getSelectedTotal();
+        BigDecimal nominal = getNominalBayar();
+
+        BigDecimal kembalian = nominal.subtract(total);
+
+        if (kembalian.compareTo(BigDecimal.ZERO) < 0) {
+            kembalian = BigDecimal.ZERO;
+        }
+
+        cashTotalLabel.setText(formatMoney(total));
+        cashKembalianLabel.setText(formatMoney(kembalian));
     }
 
     // =========================================================
@@ -540,144 +786,122 @@ public class ProsesBayarPage extends JPanel {
 
     private JPanel createSummarySection() {
         ShadowPanel card = new ShadowPanel(30);
-        card.setLayout(new BorderLayout(0, 24));
-        card.setBorder(new EmptyBorder(28, 28, 28, 28));
+        card.setLayout(new BorderLayout(0, 22));
+        card.setBorder(new EmptyBorder(24, 24, 24, 24));
+
+        JPanel titleBox = new JPanel();
+        titleBox.setOpaque(false);
+        titleBox.setLayout(new BoxLayout(titleBox, BoxLayout.Y_AXIS));
 
         JLabel title = sectionTitle("Ringkasan Pembayaran");
+        JLabel subtitle = smallLabel("Periksa ringkasan sebelum transaksi disimpan.");
+
+        titleBox.add(title);
+        titleBox.add(Box.createVerticalStrut(5));
+        titleBox.add(subtitle);
 
         JPanel body = new JPanel();
         body.setOpaque(false);
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 
-        CirclePanel iconCircle = new CirclePanel(100);
-        iconCircle.setBackground(SUCCESS_BG);
-        iconCircle.setFixedSize(98, 98);
+        RoundedPanel statusBox = new RoundedPanel(20);
+        statusBox.setBackground(SUCCESS_BG);
+        statusBox.setLayout(new BorderLayout(14, 0));
+        statusBox.setBorder(new EmptyBorder(16, 16, 16, 16));
+        statusBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 84));
+
+        CirclePanel iconCircle = new CirclePanel();
+        iconCircle.setBackground(Color.WHITE);
+        iconCircle.setFixedSize(46, 46);
         iconCircle.setLayout(new GridBagLayout());
-        iconCircle.setAlignmentX(Component.CENTER_ALIGNMENT);
-        iconCircle.add(svgIcon("icons/ProsesBayar/receipt-text.svg", 50, 50, TEXT));
+        iconCircle.add(svgIcon("icons/KasirPOS/receipt-text.svg", 24, 24, SUCCESS));
 
-        JLabel ready = new JLabel("Siap Diproses");
-        ready.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        JPanel statusText = new JPanel();
+        statusText.setOpaque(false);
+        statusText.setLayout(new BoxLayout(statusText, BoxLayout.Y_AXIS));
+
+        JLabel ready = new JLabel("Siap Diselesaikan");
+        ready.setFont(new Font("Segoe UI", Font.BOLD, 17));
         ready.setForeground(TEXT);
-        ready.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel desc1 = new JLabel("Pastikan semua data sudah benar");
-        desc1.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        desc1.setForeground(MUTED);
-        desc1.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel desc = new JLabel("Satu tombol final untuk menyimpan transaksi.");
+        desc.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        desc.setForeground(MUTED);
 
-        JLabel desc2 = new JLabel("sebelum memproses pembayaran.");
-        desc2.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        desc2.setForeground(MUTED);
-        desc2.setAlignmentX(Component.CENTER_ALIGNMENT);
+        statusText.add(ready);
+        statusText.add(Box.createVerticalStrut(5));
+        statusText.add(desc);
 
-        body.add(iconCircle);
+        statusBox.add(iconCircle, BorderLayout.WEST);
+        statusBox.add(statusText, BorderLayout.CENTER);
+
+        body.add(statusBox);
         body.add(Box.createVerticalStrut(22));
-        body.add(ready);
-        body.add(Box.createVerticalStrut(12));
-        body.add(desc1);
-        body.add(Box.createVerticalStrut(4));
-        body.add(desc2);
-        body.add(Box.createVerticalStrut(42));
 
-        body.add(summaryRow("icons/ProsesBayar/banknote.svg", "Metode", selectedMethod, TEXT));
-        body.add(Box.createVerticalStrut(20));
-        body.add(summaryRow("icons/ProsesBayar/receipt.svg", "Total Bayar", "Rp 100.000", TEXT));
-        body.add(Box.createVerticalStrut(20));
-        body.add(summaryRow(
-                "icons/ProsesBayar/wallet.svg",
-                "Uang Diterima",
-                selectedMethod.equals("Tunai") ? "Rp 150.000" : "-",
-                TEXT
-        ));
-        body.add(Box.createVerticalStrut(20));
+        summaryBookingLabel = new JLabel("-");
+        summaryPelangganLabel = new JLabel("-");
+        summaryMetodeLabel = new JLabel(getPaymentMethodLabel());
+        summaryTotalLabel = new JLabel("Rp 0");
+        summaryNominalLabel = new JLabel("Rp 0");
+        summaryKembalianLabel = new JLabel("Rp 0");
+
+        body.add(summaryRow("icons/KasirPOS/receipt-text.svg", "Booking", summaryBookingLabel, TEXT));
+        body.add(Box.createVerticalStrut(18));
+        body.add(summaryRow("icons/KasirPOS/user-round.svg", "Pelanggan", summaryPelangganLabel, TEXT));
+        body.add(Box.createVerticalStrut(18));
+        body.add(summaryRow("icons/RiwayatTransaksi/banknote.svg", "Metode", summaryMetodeLabel, TEXT));
+        body.add(Box.createVerticalStrut(18));
         body.add(separator());
-        body.add(Box.createVerticalStrut(20));
-        body.add(summaryRow(
-                "icons/ProsesBayar/circle-dollar-sign.svg",
-                "Kembalian",
-                selectedMethod.equals("Tunai") ? "Rp 50.000" : "-",
-                SUCCESS
-        ));
+        body.add(Box.createVerticalStrut(18));
+        body.add(summaryRow("icons/KasirPOS/receipt-text.svg", "Total Bayar", summaryTotalLabel, TEXT));
+        body.add(Box.createVerticalStrut(18));
+        body.add(summaryRow("icons/KasirPOS/wallet.svg", "Nominal Bayar", summaryNominalLabel, TEXT));
+        body.add(Box.createVerticalStrut(18));
+        body.add(summaryRow("icons/RiwayatTransaksi/circle-dollar-sign.svg", "Kembalian", summaryKembalianLabel, SUCCESS));
 
-        body.add(Box.createVerticalStrut(30));
+        body.add(Box.createVerticalGlue());
+        body.add(Box.createVerticalStrut(24));
 
-        RoundedButton process = createDarkButton("Proses Pembayaran", 16);
-
-        process.setIcon(
-                svgIcon(
-                        "icons/ProsesBayar/check.svg",
-                        16,
-                        16,
-                        Color.WHITE
-                ).getIcon()
-        );
-
-        process.setIconTextGap(12);
+        RoundedButton process = createDarkButton("Selesaikan Pembayaran", 16);
+        process.addActionListener(e -> handleProsesPembayaran());
 
         JPanel processWrap = new JPanel(new BorderLayout());
-
         processWrap.setOpaque(false);
-
-        processWrap.setMaximumSize(
-                new Dimension(
-                        Integer.MAX_VALUE,
-                        56
-                )
-        );
-
-        processWrap.setPreferredSize(
-                new Dimension(
-                        100,
-                        56
-                )
-        );
-
+        processWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 56));
+        processWrap.setPreferredSize(new Dimension(100, 56));
         processWrap.add(process, BorderLayout.CENTER);
 
         body.add(processWrap);
-        body.add(Box.createVerticalStrut(18));
+        body.add(Box.createVerticalStrut(14));
 
         RoundedButton print = createOutlineButton(
                 "Cetak Struk",
-                "icons/ProsesBayar/printer.svg",
+                "icons/KasirPOS/receipt-text.svg",
                 16
         );
 
         JPanel printWrap = new JPanel(new BorderLayout());
-
         printWrap.setOpaque(false);
-
-        printWrap.setMaximumSize(
-                new Dimension(
-                        Integer.MAX_VALUE,
-                        54
-                )
-        );
-
-        printWrap.setPreferredSize(
-                new Dimension(
-                        100,
-                        54
-                )
-        );
-
+        printWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 52));
+        printWrap.setPreferredSize(new Dimension(100, 52));
         printWrap.add(print, BorderLayout.CENTER);
 
         body.add(printWrap);
 
-        card.add(title, BorderLayout.NORTH);
+        card.add(titleBox, BorderLayout.NORTH);
         card.add(body, BorderLayout.CENTER);
+
+        refreshSummaryData();
 
         return card;
     }
 
-    private JPanel summaryRow(String iconPath, String label, String value, Color valueColor) {
-        JPanel row = new JPanel(new BorderLayout(16, 0));
+    private JPanel summaryRow(String iconPath, String label, JLabel valueText, Color valueColor) {
+        JPanel row = new JPanel(new BorderLayout(14, 0));
         row.setOpaque(false);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
 
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         left.setOpaque(false);
         left.add(svgIcon(iconPath, 16, 16, TEXT));
 
@@ -687,9 +911,9 @@ public class ProsesBayarPage extends JPanel {
 
         left.add(labelText);
 
-        JLabel valueText = new JLabel(value);
         valueText.setFont(new Font("Segoe UI", Font.BOLD, 14));
         valueText.setForeground(valueColor);
+        valueText.setHorizontalAlignment(SwingConstants.RIGHT);
 
         row.add(left, BorderLayout.WEST);
         row.add(valueText, BorderLayout.EAST);
@@ -697,16 +921,57 @@ public class ProsesBayarPage extends JPanel {
         return row;
     }
 
+    private void refreshSummaryData() {
+        if (summaryMetodeLabel == null) return;
+
+        BigDecimal total = getSelectedTotal();
+
+        BigDecimal nominal = selectedPaymentMethod.equals("CASH")
+                ? getNominalBayar()
+                : total;
+
+        BigDecimal kembalian = selectedPaymentMethod.equals("CASH")
+                ? nominal.subtract(total)
+                : BigDecimal.ZERO;
+
+        if (kembalian.compareTo(BigDecimal.ZERO) < 0) {
+            kembalian = BigDecimal.ZERO;
+        }
+
+        summaryBookingLabel.setText(
+                selectedBooking == null
+                        ? "-"
+                        : emptyDash(selectedBooking.getKodeBooking())
+        );
+
+        summaryPelangganLabel.setText(
+                selectedBooking == null
+                        ? "-"
+                        : emptyDash(selectedBooking.getNamaPelanggan())
+        );
+
+        summaryMetodeLabel.setText(getPaymentMethodLabel());
+        summaryTotalLabel.setText(formatMoney(total));
+
+        summaryNominalLabel.setText(
+                selectedPaymentMethod.equals("CASH")
+                        ? formatMoney(nominal)
+                        : formatMoney(total)
+        );
+
+        summaryKembalianLabel.setText(
+                selectedPaymentMethod.equals("CASH")
+                        ? formatMoney(kembalian)
+                        : "-"
+        );
+    }
+
     private void refreshPageState() {
         refreshMethodCards();
 
-        centerWrapper.remove(1);
-
-        if (selectedMethod.equals("Tunai")) {
-            centerWrapper.add(createCashSection(), BorderLayout.CENTER);
-        } else {
-            centerWrapper.add(createQrisSection(), BorderLayout.CENTER);
-        }
+        centerWrapper.removeAll();
+        centerWrapper.add(createPaymentMethodSection(), BorderLayout.NORTH);
+        centerWrapper.add(createPaymentInputSection(), BorderLayout.CENTER);
 
         summaryWrapper.removeAll();
         summaryWrapper.add(createSummarySection(), BorderLayout.CENTER);
@@ -716,13 +981,93 @@ public class ProsesBayarPage extends JPanel {
 
         summaryWrapper.revalidate();
         summaryWrapper.repaint();
+
+        refreshAllData();
+    }
+
+    // =========================================================
+    // PAYMENT ACTION
+    // =========================================================
+
+    private void handleProsesPembayaran() {
+        if (selectedBooking == null) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Pilih booking yang akan dibayar terlebih dahulu.",
+                    "Validasi",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        BigDecimal total = getSelectedTotal();
+
+        BigDecimal nominalBayar = selectedPaymentMethod.equals("CASH")
+                ? getNominalBayar()
+                : total;
+
+        if (selectedPaymentMethod.equals("CASH")
+                && nominalBayar.compareTo(total) < 0) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Uang diterima belum cukup untuk menyelesaikan pembayaran.",
+                    "Validasi",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Selesaikan pembayaran "
+                        + getPaymentMethodLabel()
+                        + " untuk "
+                        + selectedBooking.getNamaPelanggan()
+                        + "?\n\nTotal: "
+                        + formatMoney(total),
+                "Konfirmasi Pembayaran",
+                JOptionPane.YES_NO_OPTION
+        );
+
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            Integer idKasir = null;
+
+            int idTransaksi = prosesBayarService.prosesPembayaran(
+                    selectedBooking,
+                    idKasir,
+                    selectedPaymentMethod,
+                    nominalBayar
+            );
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Pembayaran berhasil diselesaikan.\nID Transaksi: TRX-"
+                            + String.format("%04d", idTransaksi),
+                    "Berhasil",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+            loadBookingSiapBayar();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    e.getMessage(),
+                    "Gagal",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
     }
 
     // =========================================================
     // SMALL COMPONENTS
     // =========================================================
 
-    private JPanel rowText(String left, String right, boolean bold, boolean darkLeft) {
+    private JPanel rowText(String left, JLabel rightLabel, boolean bold, boolean darkLeft) {
         JPanel row = new JPanel(new BorderLayout());
         row.setOpaque(false);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
@@ -731,7 +1076,6 @@ public class ProsesBayarPage extends JPanel {
         leftLabel.setFont(new Font("Segoe UI", bold ? Font.BOLD : Font.PLAIN, bold ? 15 : 14));
         leftLabel.setForeground(darkLeft ? TEXT : MUTED);
 
-        JLabel rightLabel = new JLabel(right);
         rightLabel.setFont(new Font("Segoe UI", Font.BOLD, bold ? 16 : 14));
         rightLabel.setForeground(TEXT);
 
@@ -853,6 +1197,85 @@ public class ProsesBayarPage extends JPanel {
         return label;
     }
 
+    private BigDecimal getSelectedTotal() {
+        if (selectedBooking == null || selectedBooking.getHarga() == null) {
+            return BigDecimal.ZERO;
+        }
+
+        return selectedBooking.getHarga();
+    }
+
+    private String getSelectedTotalText() {
+        return formatMoney(getSelectedTotal());
+    }
+
+    private String getPaymentMethodLabel() {
+        return switch (selectedPaymentMethod) {
+            case "CASH" -> "Tunai";
+            case "QRIS" -> "QRIS";
+            case "TRANSFER" -> "Transfer";
+            default -> selectedPaymentMethod;
+        };
+    }
+
+    private BigDecimal getNominalBayar() {
+        if (!selectedPaymentMethod.equals("CASH")) {
+            return getSelectedTotal();
+        }
+
+        if (nominalField == null) {
+            return BigDecimal.ZERO;
+        }
+
+        String raw = nominalField.getText();
+
+        if (raw == null || raw.trim().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        raw = raw.replace(".", "").replace(",", "").trim();
+
+        try {
+            return new BigDecimal(raw);
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
+        }
+    }
+
+    private String formatMoney(BigDecimal value) {
+        if (value == null) {
+            value = BigDecimal.ZERO;
+        }
+
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.of("id", "ID"));
+        symbols.setGroupingSeparator('.');
+
+        DecimalFormat format = new DecimalFormat("#,###", symbols);
+
+        return "Rp " + format.format(value);
+    }
+
+    private String getTodayText() {
+        return LocalDate.now().format(
+                DateTimeFormatter.ofPattern(
+                        "EEEE, dd MMMM yyyy",
+                        Locale.of("id", "ID")
+                )
+        );
+    }
+
+    private String getTimeText() {
+        return LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private String emptyDash(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+
+        return value;
+    }
+
     // =========================================================
     // CUSTOM COMPONENTS
     // =========================================================
@@ -911,7 +1334,7 @@ public class ProsesBayarPage extends JPanel {
         private int fixedWidth = 0;
         private int fixedHeight = 0;
 
-        public CirclePanel(int radius) {
+        public CirclePanel() {
             setOpaque(false);
         }
 
@@ -934,7 +1357,10 @@ public class ProsesBayarPage extends JPanel {
                     RenderingHints.VALUE_ANTIALIAS_ON
             );
 
-            int size = Math.min(getWidth(), getHeight());
+            int size = Math.min(
+                    fixedWidth > 0 ? fixedWidth : getWidth(),
+                    fixedHeight > 0 ? fixedHeight : getHeight()
+            );
 
             int x = (getWidth() - size) / 2;
             int y = (getHeight() - size) / 2;

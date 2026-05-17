@@ -12,19 +12,28 @@ import java.util.List;
 
 public class UserDAO {
 
-    // Ambil user berdasarkan username (untuk login)
+    // =====================================================
+    // LOGIN
+    // =====================================================
+
     public User findByUsername(String username) {
-        String sql = "SELECT id_user, username, password_hash, role, nama, aktif " +
-                "FROM users WHERE username = ? AND aktif = true";
+        String sql = """
+                SELECT id_user, username, password_hash, role, nama, aktif
+                FROM users
+                WHERE username = ?
+                  AND aktif = true
+                """;
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
+        try (
+                Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
             ps.setString(1, username);
-            ResultSet rs = ps.executeQuery();
 
-            if (rs.next()) {
-                return mapUser(rs);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapUser(rs);
+                }
             }
 
         } catch (SQLException e) {
@@ -34,16 +43,24 @@ public class UserDAO {
         return null;
     }
 
-    // Ambil semua user (untuk halaman Kelola User - OWNER only)
+    // =====================================================
+    // OWNER CRUD
+    // =====================================================
+
     public List<User> findAll() {
         List<User> list = new ArrayList<>();
-        String sql = "SELECT id_user, username, password_hash, role, nama, aktif " +
-                "FROM users ORDER BY id_user";
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             Statement st = conn.createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
+        String sql = """
+                SELECT id_user, username, password_hash, role, nama, aktif
+                FROM users
+                ORDER BY id_user DESC
+                """;
 
+        try (
+                Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()
+        ) {
             while (rs.next()) {
                 list.add(mapUser(rs));
             }
@@ -55,18 +72,110 @@ public class UserDAO {
         return list;
     }
 
-    // Tambah user baru
+    public User findById(int idUser) {
+        String sql = """
+                SELECT id_user, username, password_hash, role, nama, aktif
+                FROM users
+                WHERE id_user = ?
+                """;
+
+        try (
+                Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
+            ps.setInt(1, idUser);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapUser(rs);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error findById user: " + e.getMessage());
+        }
+
+        return null;
+    }
+
+    public boolean existsUsername(String username) {
+        String sql = """
+                SELECT COUNT(*)
+                FROM users
+                WHERE LOWER(username) = LOWER(?)
+                """;
+
+        try (
+                Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
+            ps.setString(1, username);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error existsUsername: " + e.getMessage());
+        }
+
+        return false;
+    }
+
+    public boolean existsUsernameExceptId(
+            String username,
+            int idUser
+    ) {
+        String sql = """
+                SELECT COUNT(*)
+                FROM users
+                WHERE LOWER(username) = LOWER(?)
+                  AND id_user <> ?
+                """;
+
+        try (
+                Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
+            ps.setString(1, username);
+            ps.setInt(2, idUser);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error existsUsernameExceptId: " + e.getMessage());
+        }
+
+        return false;
+    }
+
     public boolean insert(User user) {
-        String sql = "INSERT INTO users (username, password_hash, role, nama, aktif) " +
-                "VALUES (?, ?, ?, ?, true)";
+        String sql = """
+                INSERT INTO users (
+                    username,
+                    password_hash,
+                    role,
+                    nama,
+                    aktif
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """;
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
+        try (
+                Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
             ps.setString(1, user.getUsername());
             ps.setString(2, user.getPasswordHash());
             ps.setString(3, user.getRole());
             ps.setString(4, user.getNama());
+            ps.setBoolean(5, user.isAktif());
 
             return ps.executeUpdate() > 0;
 
@@ -76,15 +185,52 @@ public class UserDAO {
         }
     }
 
-    // Update status aktif user
-    public boolean setAktif(int idUser, boolean aktif) {
-        String sql = "UPDATE users SET aktif = ? WHERE id_user = ?";
+    public boolean update(User user) {
+        String sql = """
+                UPDATE users
+                SET
+                    username = ?,
+                    role = ?,
+                    nama = ?,
+                    aktif = ?
+                WHERE id_user = ?
+                """;
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (
+                Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
+            ps.setString(1, user.getUsername());
+            ps.setString(2, user.getRole());
+            ps.setString(3, user.getNama());
+            ps.setBoolean(4, user.isAktif());
+            ps.setInt(5, user.getIdUser());
 
+            return ps.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            System.err.println("Error update user: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean setAktif(
+            int idUser,
+            boolean aktif
+    ) {
+        String sql = """
+                UPDATE users
+                SET aktif = ?
+                WHERE id_user = ?
+                """;
+
+        try (
+                Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
             ps.setBoolean(1, aktif);
             ps.setInt(2, idUser);
+
             return ps.executeUpdate() > 0;
 
         } catch (SQLException e) {
@@ -93,15 +239,23 @@ public class UserDAO {
         }
     }
 
-    // Update password
-    public boolean updatePassword(int idUser, String newHash) {
-        String sql = "UPDATE users SET password_hash = ? WHERE id_user = ?";
+    public boolean updatePassword(
+            int idUser,
+            String newHash
+    ) {
+        String sql = """
+                UPDATE users
+                SET password_hash = ?
+                WHERE id_user = ?
+                """;
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
+        try (
+                Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
             ps.setString(1, newHash);
             ps.setInt(2, idUser);
+
             return ps.executeUpdate() > 0;
 
         } catch (SQLException e) {
@@ -110,55 +264,30 @@ public class UserDAO {
         }
     }
 
-    private User mapUser(ResultSet rs) throws SQLException {
+    // =====================================================
+    // MAPPER
+    // =====================================================
 
+    private User mapUser(ResultSet rs) throws SQLException {
         String role = rs.getString("role");
 
         User user;
 
         switch (role.toUpperCase()) {
-
-            case "OWNER":
-                user = new Owner();
-                break;
-
-            case "KASIR":
-                user = new Kasir();
-                break;
-
-            case "BARBER":
-                user = new Barber();
-                break;
-
-            default:
-                throw new IllegalArgumentException(
-                        "Role tidak dikenal: " + role
-                );
+            case "OWNER" -> user = new Owner();
+            case "KASIR" -> user = new Kasir();
+            case "BARBER" -> user = new Barber();
+            default -> throw new IllegalArgumentException(
+                    "Role tidak dikenal: " + role
+            );
         }
 
-        user.setIdUser(
-                rs.getInt("id_user")
-        );
-
-        user.setUsername(
-                rs.getString("username")
-        );
-
-        user.setPasswordHash(
-                rs.getString("password_hash")
-        );
-
-        user.setRole(
-                role
-        );
-
-        user.setNama(
-                rs.getString("nama")
-        );
-
-        user.setAktif(
-                rs.getBoolean("aktif")
-        );
+        user.setIdUser(rs.getInt("id_user"));
+        user.setUsername(rs.getString("username"));
+        user.setPasswordHash(rs.getString("password_hash"));
+        user.setRole(role);
+        user.setNama(rs.getString("nama"));
+        user.setAktif(rs.getBoolean("aktif"));
 
         return user;
     }

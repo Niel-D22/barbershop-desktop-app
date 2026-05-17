@@ -1,187 +1,224 @@
-main/
-├── java/
-│   ├── com/
-│       ├── barberpro/
-│           ├── config/
-│           │   └── DatabaseConnection.java
-│           ├── dao/
-│           │   ├── BarberDAO.java
-│           │   ├── BookingDAO.java
-│           │   ├── LayananDAO.java
-│           │   ├── PelangganDAO.java
-│           │   ├── TransaksiDAO.java
-│           │   └── UserDAO.java
-│           ├── interfaces/
-│           │   └── Purchasable.java
-│           ├── model/
-│           │   ├── Barber.java
-│           │   ├── Booking.java
-│           │   ├── Kasir.java
-│           │   ├── Layanan.java
-│           │   ├── Owner.java
-│           │   ├── Pelanggan.java
-│           │   ├── Transaksi.java
-│           │   └── User.java
-│           ├── service/
-│           │   ├── AuthService.java
-│           │   ├── BookingService.java
-│           │   └── TransaksiService.java
-│           ├── ui/
-│           │   ├── dashboard/
-│           │   │   ├── components/
-│           │   │   │   ├── common/
-│           │   │   │   │   ├── BaseButton.java
-│           │   │   │   │   ├── BaseCard.java
-│           │   │   │   │   ├── BaseTable.java
-│           │   │   │   │   ├── CustomConfirmDialog.java
-│           │   │   │   │   ├── FormInput.java
-│           │   │   │   │   └── Theme.java
-│           │   │   │   ├── NavbarPanel.java
-│           │   │   │   └── SidebarPanel.java
-│           │   │   ├── pages/
-│           │   │   │   ├── barber/
-│           │   │   │   │   ├── AntrianSayaPage.java
-│           │   │   │   │   └── DashboardBarberPage.java
-│           │   │   │   ├── kasir/
-│           │   │   │   │   ├── AntrianPage.java
-│           │   │   │   │   ├── ProsesBayarPage.java
-│           │   │   │   │   ├── RiwayatKasirPage.java
-│           │   │   │   │   └── TambahWalkinPage.java
-│           │   │   │   ├── owner/
-│           │   │   │       ├── BarberPage.java
-│           │   │   │       ├── DashboardPage.java
-│           │   │   │       ├── KelolaUserPage.java
-│           │   │   │       ├── LaporanPage.java
-│           │   │   │       ├── LayananPage.java
-│           │   │   │       ├── PelangganPage.java
-│           │   │   │       └── RiwayatTransaksiPage.java
-│           │   │   └── DashboardFrame.java
-│           │   ├── login/
-│           │       └── LoginFrame.java
-│           ├── util/
-│           │   └── SessionManager.java
-│           ├── Main.java
-│           └── TestBCrypt.java
-├── resources/
-    ├── icons/
-        ├── Dashboard/
-        │   ├── badge-check.svg
-        │   ├── calendar.svg
-        │   ├── chart-column.svg
-        │   ├── circle-alert.svg
-        │   ├── clock-3.svg
-        │   ├── file-text.svg
-        │   ├── plus.svg
-        │   ├── receipt-text.svg
-        │   ├── scissors.svg
-        │   ├── search.svg
-        │   ├── sparkles.svg
-        │   ├── trending-up.svg
-        │   ├── user-round.svg
-        │   ├── users.svg
-        │   └── wallet.svg
-        ├── DataBarber/
-        │   ├── badge-check.svg
-        │   ├── circle-off.svg
-        │   ├── eye.svg
-        │   ├── pencil-line.svg
-        │   ├── phone.svg
-        │   ├── plus.svg
-        │   ├── scissors.svg
-        │   ├── search.svg
-        │   ├── trash-2.svg
-        │   └── users.svg
-        ├── DataLayanan/
-        │   ├── badge-check.svg
-        │   ├── clock-3.svg
-        │   ├── gift.svg
-        │   ├── image.svg
-        │   ├── pencil-line.svg
-        │   ├── plus.svg
-        │   ├── search.svg
-        │   ├── sparkles.svg
-        │   └── trash-2.svg
-        ├── DataPelanggan/
-        │   ├── crown.svg
-        │   ├── pencil.svg
-        │   ├── plus.svg
-        │   ├── search.svg
-        │   ├── trash-2.svg
-        │   ├── user-check.svg
-        │   ├── user-plus.svg
-        │   ├── user-round.svg
-        │   └── users.svg
-        ├── KasirPOS/
-        │   ├── badge-check.svg
-        │   ├── badge-dollar-sign.svg
-        │   ├── calendar.svg
-        │   ├── clock-3.svg
-        │   ├── credit-card.svg
-        │   ├── plus.svg
-        │   ├── receipt-text.svg
-        │   ├── scissors.svg
-        │   ├── search.svg
-        │   ├── shopping-cart.svg
-        │   ├── sparkles.svg
-        │   ├── trash-2.svg
-        │   ├── user-round.svg
-        │   └── wallet.svg
-        ├── KelolaUser/
-        │   ├── badge-check.svg
-        │   ├── circle-off.svg
-        │   ├── pencil-line.svg
-        │   ├── plus.svg
-        │   ├── search.svg
-        │   ├── shield-user.svg
-        │   ├── trash-2.svg
-        │   └── user-round.svg
-        ├── Laporan/
-        │   ├── badge-check.svg
-        │   ├── calendar.svg
-        │   ├── chart-column.svg
-        │   ├── clock-3.svg
-        │   └── download.svg
-        ├── ProsesBayar/
-        │   ├── badge-check.svg
-        │   ├── banknote.svg
-        │   ├── calendar.svg
-        │   ├── check.svg
-        │   ├── circle-dollar-sign.svg
-        │   ├── clock-3.svg
-        │   ├── credit-card.svg
-        │   ├── plus.svg
-        │   ├── printer.svg
-        │   ├── qr-code.svg
-        │   ├── receipt-text.svg
-        │   ├── receipt.svg
-        │   ├── scan-line.svg
-        │   ├── search.svg
-        │   ├── shield-check.svg
-        │   ├── trash-2.svg
-        │   ├── user-round.svg
-        │   └── wallet.svg
-        ├── RiwayatTransaksi/
-        │   ├── badge-check.svg
-        │   ├── banknote.svg
-        │   ├── calendar.svg
-        │   ├── circle-dollar-sign.svg
-        │   ├── clock-3.svg
-        │   ├── credit-card.svg
-        │   ├── eye.svg
-        │   ├── plus.svg
-        │   ├── receipt.svg
-        │   ├── scissors.svg
-        │   ├── search.svg
-        │   ├── trash-2.svg
-        │   ├── user-round.svg
-        │   └── wallet.svg
-        ├── briefcase-business.svg
-        ├── chart-column.svg
-        ├── layout-dashboard.svg
-        ├── list-ordered.svg
-        ├── log-out.svg
-        ├── receipt-text.svg
-        ├── scissors.svg
-        ├── user-cog.svg
-        ├── users.svg
-        └── wallet.svg
+src/
+├── main/
+│   ├── java/
+│   │   ├── com/
+│   │       ├── barberpro/
+│   │           ├── config/
+│   │           │   └── DatabaseConnection.java
+│   │           ├── dao/
+│   │           │   ├── BarberDAO.java
+│   │           │   ├── BookingDAO.java
+│   │           │   ├── LayananDAO.java
+│   │           │   ├── PelangganDAO.java
+│   │           │   ├── TransaksiDAO.java
+│   │           │   └── UserDAO.java
+│   │           ├── interfaces/
+│   │           │   └── Purchasable.java
+│   │           ├── model/
+│   │           │   ├── Barber.java
+│   │           │   ├── Booking.java
+│   │           │   ├── Kasir.java
+│   │           │   ├── Layanan.java
+│   │           │   ├── Owner.java
+│   │           │   ├── Pelanggan.java
+│   │           │   ├── Transaksi.java
+│   │           │   └── User.java
+│   │           ├── service/
+│   │           │   ├── AuthService.java
+│   │           │   ├── BookingService.java
+│   │           │   └── TransaksiService.java
+│   │           ├── ui/
+│   │           │   ├── dashboard/
+│   │           │   │   ├── components/
+│   │           │   │   │   ├── common/
+│   │           │   │   │   │   ├── BaseButton.java
+│   │           │   │   │   │   ├── BaseCard.java
+│   │           │   │   │   │   ├── BaseTable.java
+│   │           │   │   │   │   ├── CustomConfirmDialog.java
+│   │           │   │   │   │   ├── FormInput.java
+│   │           │   │   │   │   └── Theme.java
+│   │           │   │   │   ├── NavbarPanel.java
+│   │           │   │   │   └── SidebarPanel.java
+│   │           │   │   ├── pages/
+│   │           │   │   │   ├── barber/
+│   │           │   │   │   │   ├── AntrianSayaPage.java
+│   │           │   │   │   │   └── DashboardBarberPage.java
+│   │           │   │   │   ├── kasir/
+│   │           │   │   │   │   ├── AntrianPage.java
+│   │           │   │   │   │   ├── ProsesBayarPage.java
+│   │           │   │   │   │   ├── RiwayatKasirPage.java
+│   │           │   │   │   │   └── TambahWalkinPage.java
+│   │           │   │   │   ├── owner/
+│   │           │   │   │       ├── BarberPage.java
+│   │           │   │   │       ├── DashboardPage.java
+│   │           │   │   │       ├── KelolaUserPage.java
+│   │           │   │   │       ├── LaporanPage.java
+│   │           │   │   │       ├── LayananPage.java
+│   │           │   │   │       ├── PelangganPage.java
+│   │           │   │   │       └── RiwayatTransaksiPage.java
+│   │           │   │   └── DashboardFrame.java
+│   │           │   ├── login/
+│   │           │       └── LoginFrame.java
+│   │           ├── util/
+│   │           │   └── SessionManager.java
+│   │           ├── Main.java
+│   │           └── TestBCrypt.java
+│   ├── resources/
+│       ├── icons/
+│           ├── Barber/
+│           │   ├── badge-check.svg
+│           │   ├── check.svg
+│           │   ├── circle-alert.svg
+│           │   ├── circle-off.svg
+│           │   ├── clock-3.svg
+│           │   ├── layout-dashboard.svg
+│           │   ├── list-ordered.svg
+│           │   ├── play.svg
+│           │   ├── scissors.svg
+│           │   ├── user-round.svg
+│           │   └── wallet.svg
+│           ├── Dashboard/
+│           │   ├── badge-check.svg
+│           │   ├── calendar.svg
+│           │   ├── chart-column.svg
+│           │   ├── circle-alert.svg
+│           │   ├── clock-3.svg
+│           │   ├── file-text.svg
+│           │   ├── plus.svg
+│           │   ├── receipt-text.svg
+│           │   ├── scissors.svg
+│           │   ├── search.svg
+│           │   ├── sparkles.svg
+│           │   ├── trending-up.svg
+│           │   ├── user-round.svg
+│           │   ├── users.svg
+│           │   └── wallet.svg
+│           ├── DataBarber/
+│           │   ├── badge-check.svg
+│           │   ├── circle-off.svg
+│           │   ├── eye.svg
+│           │   ├── pencil-line.svg
+│           │   ├── phone.svg
+│           │   ├── plus.svg
+│           │   ├── scissors.svg
+│           │   ├── search.svg
+│           │   ├── trash-2.svg
+│           │   └── users.svg
+│           ├── DataLayanan/
+│           │   ├── badge-check.svg
+│           │   ├── clock-3.svg
+│           │   ├── gift.svg
+│           │   ├── image.svg
+│           │   ├── pencil-line.svg
+│           │   ├── plus.svg
+│           │   ├── search.svg
+│           │   ├── sparkles.svg
+│           │   └── trash-2.svg
+│           ├── DataPelanggan/
+│           │   ├── crown.svg
+│           │   ├── pencil.svg
+│           │   ├── plus.svg
+│           │   ├── search.svg
+│           │   ├── trash-2.svg
+│           │   ├── user-check.svg
+│           │   ├── user-plus.svg
+│           │   ├── user-round.svg
+│           │   └── users.svg
+│           ├── KasirPOS/
+│           │   ├── badge-check.svg
+│           │   ├── badge-dollar-sign.svg
+│           │   ├── calendar.svg
+│           │   ├── clock-3.svg
+│           │   ├── credit-card.svg
+│           │   ├── plus.svg
+│           │   ├── receipt-text.svg
+│           │   ├── scissors.svg
+│           │   ├── search.svg
+│           │   ├── shopping-cart.svg
+│           │   ├── sparkles.svg
+│           │   ├── trash-2.svg
+│           │   ├── user-round.svg
+│           │   └── wallet.svg
+│           ├── KelolaUser/
+│           │   ├── badge-check.svg
+│           │   ├── circle-off.svg
+│           │   ├── pencil-line.svg
+│           │   ├── plus.svg
+│           │   ├── search.svg
+│           │   ├── shield-user.svg
+│           │   ├── trash-2.svg
+│           │   └── user-round.svg
+│           ├── Laporan/
+│           │   ├── badge-check.svg
+│           │   ├── calendar.svg
+│           │   ├── chart-column.svg
+│           │   ├── clock-3.svg
+│           │   └── download.svg
+│           ├── ProsesBayar/
+│           │   ├── badge-check.svg
+│           │   ├── banknote.svg
+│           │   ├── calendar.svg
+│           │   ├── check.svg
+│           │   ├── circle-dollar-sign.svg
+│           │   ├── clock-3.svg
+│           │   ├── credit-card.svg
+│           │   ├── plus.svg
+│           │   ├── printer.svg
+│           │   ├── qr-code.svg
+│           │   ├── receipt-text.svg
+│           │   ├── receipt.svg
+│           │   ├── scan-line.svg
+│           │   ├── search.svg
+│           │   ├── shield-check.svg
+│           │   ├── trash-2.svg
+│           │   ├── user-round.svg
+│           │   └── wallet.svg
+│           ├── RiwayatKasir/
+│           │   ├── badge-check.svg
+│           │   ├── banknote.svg
+│           │   ├── calendar.svg
+│           │   ├── check.svg
+│           │   ├── circle-dollar-sign.svg
+│           │   ├── clock-3.svg
+│           │   ├── credit-card.svg
+│           │   ├── eye.svg
+│           │   ├── plus.svg
+│           │   ├── printer.svg
+│           │   ├── qr-code.svg
+│           │   ├── receipt-text.svg
+│           │   ├── receipt.svg
+│           │   ├── refresh-ccw.svg
+│           │   ├── scan-line.svg
+│           │   ├── search.svg
+│           │   ├── shield-check.svg
+│           │   ├── trash-2.svg
+│           │   ├── user-round.svg
+│           │   └── wallet.svg
+│           ├── RiwayatTransaksi/
+│           │   ├── badge-check.svg
+│           │   ├── banknote.svg
+│           │   ├── calendar.svg
+│           │   ├── circle-dollar-sign.svg
+│           │   ├── clock-3.svg
+│           │   ├── credit-card.svg
+│           │   ├── eye.svg
+│           │   ├── plus.svg
+│           │   ├── receipt.svg
+│           │   ├── refresh-ccw.svg
+│           │   ├── scissors.svg
+│           │   ├── search.svg
+│           │   ├── trash-2.svg
+│           │   ├── user-round.svg
+│           │   └── wallet.svg
+│           ├── briefcase-business.svg
+│           ├── chart-column.svg
+│           ├── layout-dashboard.svg
+│           ├── list-ordered.svg
+│           ├── log-out.svg
+│           ├── receipt-text.svg
+│           ├── scissors.svg
+│           ├── user-cog.svg
+│           ├── users.svg
+│           └── wallet.svg
+├── test/
+    ├── java/

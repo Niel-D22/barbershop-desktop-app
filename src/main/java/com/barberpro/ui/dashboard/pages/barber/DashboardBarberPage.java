@@ -1,5 +1,8 @@
 package com.barberpro.ui.dashboard.pages.barber;
 
+import com.barberpro.model.BarberDashboardQueueItem;
+import com.barberpro.model.BarberDashboardStats;
+import com.barberpro.service.BarberDashboardService;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 
 import javax.swing.*;
@@ -7,6 +10,14 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Locale;
 
 public class DashboardBarberPage extends JPanel {
 
@@ -28,13 +39,24 @@ public class DashboardBarberPage extends JPanel {
     private final Color RED_BG = new Color(254, 242, 242);
     private final Color RED = new Color(239, 68, 68);
 
+    private final BarberDashboardService dashboardService =
+            new BarberDashboardService();
+
+    private JPanel statsPanel;
+    private JPanel queueRowsPanel;
+    private JPanel todayStatsList;
+
     public DashboardBarberPage() {
         setLayout(new BorderLayout());
         setBackground(BG);
+
         buildUI();
+        loadData();
     }
 
     private void buildUI() {
+        removeAll();
+
         JPanel content = new JPanel(new BorderLayout(0, 20));
         content.setOpaque(false);
         content.setBorder(new EmptyBorder(24, 24, 22, 24));
@@ -51,6 +73,46 @@ public class DashboardBarberPage extends JPanel {
         scroll.getVerticalScrollBar().setUnitIncrement(18);
 
         add(scroll, BorderLayout.CENTER);
+
+        revalidate();
+        repaint();
+    }
+
+    private void loadData() {
+        SwingWorker<Void, Void> worker = new SwingWorker<>() {
+
+            private BarberDashboardStats stats;
+            private List<BarberDashboardQueueItem> queueItems;
+
+            @Override
+            protected Void doInBackground() throws Exception {
+                stats = dashboardService.getStatsHariIni();
+                queueItems = dashboardService.getAntrianAktifHariIni();
+
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get();
+
+                    renderStats(stats);
+                    renderQueueRows(queueItems);
+                    renderTodayStats(stats);
+
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(
+                            DashboardBarberPage.this,
+                            "Gagal memuat dashboard barber: " + e.getMessage(),
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                }
+            }
+        };
+
+        worker.execute();
     }
 
     // =========================================================
@@ -79,8 +141,8 @@ public class DashboardBarberPage extends JPanel {
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         right.setOpaque(false);
-        right.add(dateCard("icons/Barber/clock-3.svg", "Jumat, 15 Mei 2026", 160));
-        right.add(dateCard("icons/Barber/clock-3.svg", "21:35", 90));
+        right.add(dateCard("icons/Barber/clock-3.svg", getTodayText(), 170));
+        right.add(dateCard("icons/Barber/clock-3.svg", getTimeText(), 90));
 
         header.add(left, BorderLayout.WEST);
         header.add(right, BorderLayout.EAST);
@@ -92,58 +154,61 @@ public class DashboardBarberPage extends JPanel {
         JPanel body = new JPanel(new BorderLayout(0, 18));
         body.setOpaque(false);
 
-        body.add(createStats(), BorderLayout.NORTH);
+        statsPanel = new JPanel(new GridLayout(1, 4, 16, 0));
+        statsPanel.setOpaque(false);
+        statsPanel.setPreferredSize(new Dimension(100, 105));
+
+        body.add(statsPanel, BorderLayout.NORTH);
         body.add(createMainContent(), BorderLayout.CENTER);
 
         return body;
     }
 
     // =========================================================
-    // STATISTIC CARDS
+    // STATS
     // =========================================================
 
-    private JPanel createStats() {
-        JPanel stats = new JPanel(new GridLayout(1, 4, 16, 0));
-        stats.setOpaque(false);
-        stats.setPreferredSize(new Dimension(100, 105));
+    private void renderStats(BarberDashboardStats stats) {
+        statsPanel.removeAll();
 
-        stats.add(statCard(
+        statsPanel.add(statCard(
                 "icons/Barber/circle-alert.svg",
                 ORANGE_BG,
                 ORANGE,
                 "Menunggu",
-                "5",
+                String.valueOf(stats.getMenunggu()),
                 "Belum dilayani"
         ));
 
-        stats.add(statCard(
+        statsPanel.add(statCard(
                 "icons/Barber/scissors.svg",
                 BLUE_BG,
                 BLUE,
                 "Diproses",
-                "3",
+                String.valueOf(stats.getDiproses()),
                 "Sedang dicukur"
         ));
 
-        stats.add(statCard(
+        statsPanel.add(statCard(
                 "icons/Barber/badge-check.svg",
                 GREEN_BG,
                 GREEN,
                 "Selesai",
-                "4",
+                String.valueOf(stats.getSelesai()),
                 "Selesai hari ini"
         ));
 
-        stats.add(statCard(
+        statsPanel.add(statCard(
                 "icons/Barber/circle-off.svg",
                 RED_BG,
                 RED,
                 "Batal",
-                "1",
+                String.valueOf(stats.getBatal()),
                 "Dibatalkan"
         ));
 
-        return stats;
+        statsPanel.revalidate();
+        statsPanel.repaint();
     }
 
     private JPanel statCard(
@@ -243,8 +308,12 @@ public class DashboardBarberPage extends JPanel {
         JPanel table = new JPanel(new BorderLayout());
         table.setOpaque(false);
 
+        queueRowsPanel = new JPanel();
+        queueRowsPanel.setOpaque(false);
+        queueRowsPanel.setLayout(new BoxLayout(queueRowsPanel, BoxLayout.Y_AXIS));
+
         table.add(createQueueHeader(), BorderLayout.NORTH);
-        table.add(createQueueRows(), BorderLayout.CENTER);
+        table.add(queueRowsPanel, BorderLayout.CENTER);
 
         card.add(title, BorderLayout.NORTH);
         card.add(table, BorderLayout.CENTER);
@@ -257,7 +326,13 @@ public class DashboardBarberPage extends JPanel {
         header.setOpaque(false);
         header.setBorder(
                 BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(238, 238, 238)),
+                        BorderFactory.createMatteBorder(
+                                0,
+                                0,
+                                1,
+                                0,
+                                new Color(238, 238, 238)
+                        ),
                         new EmptyBorder(10, 10, 10, 10)
                 )
         );
@@ -272,7 +347,12 @@ public class DashboardBarberPage extends JPanel {
         return header;
     }
 
-    private void addHeaderCell(JPanel parent, String text, int x, double weight) {
+    private void addHeaderCell(
+            JPanel parent,
+            String text,
+            int x,
+            double weight
+    ) {
         GridBagConstraints c = new GridBagConstraints();
         c.gridx = x;
         c.gridy = 0;
@@ -286,78 +366,72 @@ public class DashboardBarberPage extends JPanel {
         parent.add(label, c);
     }
 
-    private JPanel createQueueRows() {
-        JPanel rows = new JPanel();
-        rows.setOpaque(false);
-        rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
+    private void renderQueueRows(List<BarberDashboardQueueItem> items) {
+        queueRowsPanel.removeAll();
 
-        rows.add(queueRow(
-                "A-02",
-                "Dewi Lestari",
-                "0812-685-6666",
-                "Haircut",
-                "Rp 70.000 • 30 menit",
-                "10:45",
-                "DIPROSES",
-                "30 menit"
-        ));
+        if (items == null || items.isEmpty()) {
+            queueRowsPanel.add(emptyQueue());
+        } else {
+            for (BarberDashboardQueueItem item : items) {
+                queueRowsPanel.add(queueRow(item));
+            }
+        }
 
-        rows.add(queueRow(
-                "A-04",
-                "Siti Aisyah",
-                "0823-4444-7777",
-                "Haircut, Styling",
-                "Rp 110.000 • 60 menit",
-                "11:30",
-                "DIPROSES",
-                "60 menit"
-        ));
-
-        rows.add(queueRow(
-                "A-06",
-                "Budi Santoso",
-                "0813-1234-5678",
-                "Haircut",
-                "Rp 70.000 • 30 menit",
-                "12:30",
-                "MENUNGGU",
-                "30 menit"
-        ));
-
-        return rows;
+        queueRowsPanel.revalidate();
+        queueRowsPanel.repaint();
     }
 
-    private JPanel queueRow(
-            String queueNo,
-            String customer,
-            String phone,
-            String service,
-            String detail,
-            String time,
-            String status,
-            String duration
-    ) {
+    private JPanel queueRow(BarberDashboardQueueItem item) {
         JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(false);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 78));
         row.setBorder(
                 BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(238, 238, 238)),
+                        BorderFactory.createMatteBorder(
+                                0,
+                                0,
+                                1,
+                                0,
+                                new Color(238, 238, 238)
+                        ),
                         new EmptyBorder(12, 10, 12, 10)
                 )
         );
 
-        addRowCell(row, queueNumber(queueNo), 0, 0.14);
-        addRowCell(row, customerCell(customer, phone), 1, 0.24);
-        addRowCell(row, serviceCell(service, detail), 2, 0.26);
-        addRowCell(row, simpleText(time, true), 3, 0.10);
-        addRowCell(row, statusBadge(status), 4, 0.15);
-        addRowCell(row, simpleText(duration, true), 5, 0.11);
+        addRowCell(row, queueNumber(item.getNoAntrianText()), 0, 0.14);
+        addRowCell(row, customerCell(item.getNamaPelanggan(), item.getNoHp()), 1, 0.24);
+        addRowCell(row, serviceCell(
+                item.getNamaLayananGabungan(),
+                formatMoney(item.getTotalHarga()) + " • " + item.getTotalDurasiMenit() + " menit"
+        ), 2, 0.26);
+        addRowCell(row, simpleText(formatTime(item.getJam()), true), 3, 0.10);
+        addRowCell(row, statusBadge(item.getStatus()), 4, 0.15);
+        addRowCell(row, simpleText(item.getTotalDurasiMenit() + " menit", true), 5, 0.11);
 
         return row;
     }
 
-    private void addRowCell(JPanel parent, JComponent component, int x, double weight) {
+    private JPanel emptyQueue() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setOpaque(false);
+        panel.setPreferredSize(new Dimension(100, 260));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
+
+        JLabel label = new JLabel("Belum ada antrian aktif untuk barber ini.");
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        label.setForeground(MUTED);
+
+        panel.add(label);
+
+        return panel;
+    }
+
+    private void addRowCell(
+            JPanel parent,
+            JComponent component,
+            int x,
+            double weight
+    ) {
         GridBagConstraints c = new GridBagConstraints();
         c.gridx = x;
         c.gridy = 0;
@@ -394,11 +468,11 @@ public class DashboardBarberPage extends JPanel {
         text.setOpaque(false);
         text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
 
-        JLabel nameLabel = new JLabel(name);
+        JLabel nameLabel = new JLabel(emptyDash(name));
         nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         nameLabel.setForeground(TEXT);
 
-        JLabel phoneLabel = new JLabel(phone);
+        JLabel phoneLabel = new JLabel(emptyDash(phone));
         phoneLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         phoneLabel.setForeground(MUTED);
 
@@ -428,11 +502,11 @@ public class DashboardBarberPage extends JPanel {
         text.setOpaque(false);
         text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
 
-        JLabel serviceLabel = new JLabel(service);
+        JLabel serviceLabel = new JLabel(emptyDash(service));
         serviceLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         serviceLabel.setForeground(TEXT);
 
-        JLabel detailLabel = new JLabel(detail);
+        JLabel detailLabel = new JLabel(emptyDash(detail));
         detailLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         detailLabel.setForeground(MUTED);
 
@@ -452,7 +526,7 @@ public class DashboardBarberPage extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 16));
         panel.setOpaque(false);
 
-        JLabel label = new JLabel(text);
+        JLabel label = new JLabel(emptyDash(text));
         label.setFont(new Font("Segoe UI", bold ? Font.BOLD : Font.PLAIN, 13));
         label.setForeground(TEXT);
 
@@ -462,18 +536,37 @@ public class DashboardBarberPage extends JPanel {
     }
 
     private JPanel statusBadge(String status) {
-        Color bg = status.equals("DIPROSES") ? BLUE_BG : ORANGE_BG;
-        Color fg = status.equals("DIPROSES") ? BLUE : ORANGE;
+        Color bg;
+        Color fg;
+
+        switch (status) {
+            case "DIPROSES", "DICUKUR" -> {
+                bg = BLUE_BG;
+                fg = BLUE;
+            }
+            case "MENUNGGU_PEMBAYARAN", "LUNAS" -> {
+                bg = GREEN_BG;
+                fg = GREEN;
+            }
+            case "BATAL" -> {
+                bg = RED_BG;
+                fg = RED;
+            }
+            default -> {
+                bg = ORANGE_BG;
+                fg = ORANGE;
+            }
+        }
 
         JPanel wrapper = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 15));
         wrapper.setOpaque(false);
 
         RoundedPanel badge = new RoundedPanel(99);
         badge.setBackground(bg);
-        badge.setPreferredSize(new Dimension(92, 26));
+        badge.setPreferredSize(new Dimension(110, 26));
         badge.setLayout(new GridBagLayout());
 
-        JLabel label = new JLabel(status);
+        JLabel label = new JLabel(statusToUi(status));
         label.setFont(new Font("Segoe UI", Font.BOLD, 11));
         label.setForeground(fg);
 
@@ -508,25 +601,68 @@ public class DashboardBarberPage extends JPanel {
         title.setFont(new Font("Segoe UI", Font.BOLD, 15));
         title.setForeground(TEXT);
 
-        JPanel list = new JPanel();
-        list.setOpaque(false);
-        list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-
-        list.add(todayStatRow("icons/Barber/badge-check.svg", GREEN, "Total Dilayani", "4", GREEN_BG));
-        list.add(Box.createVerticalStrut(15));
-        list.add(todayStatRow("icons/Barber/scissors.svg", BLUE, "Sedang Dilayani", "2", BLUE_BG));
-        list.add(Box.createVerticalStrut(15));
-        list.add(todayStatRow("icons/Barber/clock-3.svg", MUTED, "Rata-rata Durasi", "38 menit", null));
-        list.add(Box.createVerticalStrut(15));
-        list.add(todayStatRow("icons/Barber/wallet.svg", TEXT, "Total Pendapatan", "Rp 430.000", null));
+        todayStatsList = new JPanel();
+        todayStatsList.setOpaque(false);
+        todayStatsList.setLayout(new BoxLayout(todayStatsList, BoxLayout.Y_AXIS));
 
         card.add(title, BorderLayout.NORTH);
-        card.add(list, BorderLayout.CENTER);
+        card.add(todayStatsList, BorderLayout.CENTER);
 
         return card;
     }
 
-    private JPanel todayStatRow(String iconPath, Color iconColor, String label, String value, Color badgeBg) {
+    private void renderTodayStats(BarberDashboardStats stats) {
+        todayStatsList.removeAll();
+
+        todayStatsList.add(todayStatRow(
+                "icons/Barber/badge-check.svg",
+                GREEN,
+                "Total Dilayani",
+                String.valueOf(stats.getTotalDilayani()),
+                GREEN_BG
+        ));
+
+        todayStatsList.add(Box.createVerticalStrut(15));
+
+        todayStatsList.add(todayStatRow(
+                "icons/Barber/scissors.svg",
+                BLUE,
+                "Sedang Dilayani",
+                String.valueOf(stats.getSedangDilayani()),
+                BLUE_BG
+        ));
+
+        todayStatsList.add(Box.createVerticalStrut(15));
+
+        todayStatsList.add(todayStatRow(
+                "icons/Barber/clock-3.svg",
+                MUTED,
+                "Rata-rata Durasi",
+                stats.getRataRataDurasiMenit() + " menit",
+                null
+        ));
+
+        todayStatsList.add(Box.createVerticalStrut(15));
+
+        todayStatsList.add(todayStatRow(
+                "icons/Barber/wallet.svg",
+                TEXT,
+                "Total Pendapatan",
+                formatMoney(stats.getTotalPendapatan()),
+                null
+        ));
+
+        todayStatsList.revalidate();
+        todayStatsList.repaint();
+    }
+
+    private JPanel todayStatRow(
+            String iconPath,
+            Color iconColor,
+            String label,
+            String value,
+            Color badgeBg
+    ) {
         JPanel row = new JPanel(new BorderLayout(8, 0));
         row.setOpaque(false);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
@@ -547,7 +683,7 @@ public class DashboardBarberPage extends JPanel {
         if (badgeBg != null) {
             RoundedPanel badge = new RoundedPanel(99);
             badge.setBackground(badgeBg);
-            badge.setPreferredSize(new Dimension(28, 22));
+            badge.setPreferredSize(new Dimension(34, 22));
             badge.setLayout(new GridBagLayout());
 
             JLabel valueLabel = new JLabel(value);
@@ -556,6 +692,7 @@ public class DashboardBarberPage extends JPanel {
 
             badge.add(valueLabel);
             valueComponent = badge;
+
         } else {
             JLabel valueLabel = new JLabel(value);
             valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -583,7 +720,10 @@ public class DashboardBarberPage extends JPanel {
         title.setFont(new Font("Segoe UI", Font.BOLD, 14));
         title.setForeground(TEXT);
 
-        JLabel desc = new JLabel("<html>Pastikan setiap layanan selesai sebelum<br>pelanggan menuju kasir untuk pembayaran.</html>");
+        JLabel desc = new JLabel(
+                "<html>Pastikan setiap layanan selesai sebelum<br>pelanggan menuju kasir untuk pembayaran.</html>"
+        );
+
         desc.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         desc.setForeground(MUTED);
 
@@ -643,6 +783,66 @@ public class DashboardBarberPage extends JPanel {
         });
     }
 
+    private String getTodayText() {
+        return LocalDate.now().format(
+                DateTimeFormatter.ofPattern(
+                        "EEEE, dd MMM yyyy",
+                        Locale.of("id", "ID")
+                )
+        );
+    }
+
+    private String getTimeText() {
+        return LocalTime.now().format(
+                DateTimeFormatter.ofPattern("HH:mm")
+        );
+    }
+
+    private String formatTime(LocalTime time) {
+        if (time == null) {
+            return "-";
+        }
+
+        return time.format(
+                DateTimeFormatter.ofPattern("HH:mm")
+        );
+    }
+
+    private String formatMoney(BigDecimal value) {
+        if (value == null) {
+            value = BigDecimal.ZERO;
+        }
+
+        DecimalFormatSymbols symbols =
+                new DecimalFormatSymbols(Locale.of("id", "ID"));
+
+        symbols.setGroupingSeparator('.');
+
+        DecimalFormat format = new DecimalFormat("#,###", symbols);
+
+        return "Rp " + format.format(value);
+    }
+
+    private String emptyDash(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+
+        return value;
+    }
+
+    private String statusToUi(String status) {
+        return switch (status) {
+            case "MENUNGGU" -> "MENUNGGU";
+            case "DIPROSES" -> "DIPROSES";
+            case "DICUKUR" -> "DICUKUR";
+            case "MENUNGGU_PEMBAYARAN" -> "SELESAI";
+            case "LUNAS" -> "LUNAS";
+            case "BATAL" -> "BATAL";
+            default -> status;
+        };
+    }
+
     // =========================================================
     // CUSTOM PANELS
     // =========================================================
@@ -675,7 +875,14 @@ public class DashboardBarberPage extends JPanel {
 
             if (borderColor != null && borderWidth > 0) {
                 g2.setColor(borderColor);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+                g2.fillRoundRect(
+                        0,
+                        0,
+                        getWidth(),
+                        getHeight(),
+                        radius,
+                        radius
+                );
 
                 g2.setColor(getBackground());
                 g2.fillRoundRect(
@@ -686,12 +893,21 @@ public class DashboardBarberPage extends JPanel {
                         radius,
                         radius
                 );
+
             } else {
                 g2.setColor(getBackground());
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+                g2.fillRoundRect(
+                        0,
+                        0,
+                        getWidth(),
+                        getHeight(),
+                        radius,
+                        radius
+                );
             }
 
             g2.dispose();
+
             super.paintComponent(g);
         }
     }
@@ -726,6 +942,7 @@ public class DashboardBarberPage extends JPanel {
             g2.fillOval(x, y, size, size);
 
             g2.dispose();
+
             super.paintComponent(g);
         }
     }
@@ -750,15 +967,37 @@ public class DashboardBarberPage extends JPanel {
             );
 
             g2.setColor(new Color(0, 0, 0, 8));
-            g2.fillRoundRect(4, 6, getWidth() - 8, getHeight() - 10, radius, radius);
+            g2.fillRoundRect(
+                    4,
+                    6,
+                    getWidth() - 8,
+                    getHeight() - 10,
+                    radius,
+                    radius
+            );
 
             g2.setColor(Color.WHITE);
-            g2.fillRoundRect(0, 0, getWidth() - 4, getHeight() - 6, radius, radius);
+            g2.fillRoundRect(
+                    0,
+                    0,
+                    getWidth() - 4,
+                    getHeight() - 6,
+                    radius,
+                    radius
+            );
 
             g2.setColor(new Color(236, 236, 236));
-            g2.drawRoundRect(0, 0, getWidth() - 5, getHeight() - 7, radius, radius);
+            g2.drawRoundRect(
+                    0,
+                    0,
+                    getWidth() - 5,
+                    getHeight() - 7,
+                    radius,
+                    radius
+            );
 
             g2.dispose();
+
             super.paintComponent(g);
         }
     }
