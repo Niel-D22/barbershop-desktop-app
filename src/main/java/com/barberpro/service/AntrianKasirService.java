@@ -65,4 +65,18 @@ public class AntrianKasirService {
             );
         }
     }
+
+    public void hapusBooking(AntrianKasirItem item) throws SQLException {
+        if (item == null || item.getIdBooking() <= 0) {
+            throw new IllegalArgumentException("Data booking tidak valid.");
+        }
+
+        boolean success = antrianKasirDAO.hapusBookingPermanen(item.getIdBooking());
+
+        if (!success) {
+            throw new IllegalStateException(
+                    "Booking gagal dihapus. Kemungkinan data sudah tidak ada."
+            );
+        }
+    }
 }

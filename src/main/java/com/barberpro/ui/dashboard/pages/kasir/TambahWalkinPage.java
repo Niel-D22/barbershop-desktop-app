@@ -628,7 +628,7 @@ public class TambahWalkinPage extends JPanel {
         buttonWrap.setOpaque(false);
         buttonWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
 
-        RoundedButton processButton = createDarkButton("Proses Bayar");
+        RoundedButton processButton = createDarkButton("Booking");
         processButton.setPreferredSize(new Dimension(160, 48));
         processButton.addActionListener(e -> handleSubmitBooking());
 

@@ -137,6 +137,55 @@ public class AntrianKasirDAO {
         }
     }
 
+    public boolean hapusBookingPermanen(int idBooking) throws SQLException {
+        String deleteLoyaltyLog = """
+            DELETE FROM loyalty_log
+            WHERE id_transaksi IN (
+                SELECT id_transaksi
+                FROM transaksi
+                WHERE id_booking = ?
+            )
+            """;
+
+        String deleteTransaksi = """
+            DELETE FROM transaksi
+            WHERE id_booking = ?
+            """;
+
+        String deleteBooking = """
+            DELETE FROM booking
+            WHERE id_booking = ?
+            """;
+
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+
+            try (
+                    PreparedStatement psLog = conn.prepareStatement(deleteLoyaltyLog);
+                    PreparedStatement psTransaksi = conn.prepareStatement(deleteTransaksi);
+                    PreparedStatement psBooking = conn.prepareStatement(deleteBooking)
+            ) {
+                psLog.setInt(1, idBooking);
+                psLog.executeUpdate();
+
+                psTransaksi.setInt(1, idBooking);
+                psTransaksi.executeUpdate();
+
+                psBooking.setInt(1, idBooking);
+                int deleted = psBooking.executeUpdate();
+
+                conn.commit();
+                return deleted > 0;
+
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+    }
+
     private void appendStatusFilter(
             StringBuilder sql,
             List<Object> params,

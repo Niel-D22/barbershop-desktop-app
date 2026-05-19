@@ -94,6 +94,15 @@ public class ProsesBayarService {
         return null;
     }
 
+    // =========================================================
+    // BAYAR NORMAL
+    // Hasil:
+    // - total sesuai harga layanan
+    // - poin_diberikan = 1
+    // - poin_digunakan = 0
+    // - pelanggan total_kunjungan +1
+    // - pelanggan poin_loyalitas +1
+    // =========================================================
     public int prosesPembayaran(
             PaymentBooking booking,
             Integer idKasir,
@@ -107,9 +116,7 @@ public class ProsesBayarService {
 
         String metode = normalizeMetodeBayar(metodeBayar);
 
-        try (
-                Connection conn = DatabaseConnection.getConnection()
-        ) {
+        try (Connection conn = DatabaseConnection.getConnection()) {
             conn.setAutoCommit(false);
 
             try {
@@ -127,9 +134,7 @@ public class ProsesBayarService {
                     throw new IllegalStateException("Booking ini sudah memiliki transaksi.");
                 }
 
-                BigDecimal total = locked.harga == null
-                        ? BigDecimal.ZERO
-                        : locked.harga;
+                BigDecimal total = safeMoney(locked.harga);
 
                 BigDecimal bayar = metode.equals("CASH")
                         ? safeMoney(nominalBayar)
@@ -182,10 +187,24 @@ public class ProsesBayarService {
             } catch (Exception e) {
                 conn.rollback();
                 throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
         }
     }
 
+    // =========================================================
+    // BAYAR PAKAI REWARD
+    // Dipanggil dari tombol "Gunakan Reward Point"
+    // Hasil:
+    // - total = 0
+    // - nominal_bayar = 0
+    // - kembalian = 0
+    // - poin_diberikan = 0
+    // - poin_digunakan = 5
+    // - pelanggan total_kunjungan +1
+    // - pelanggan poin_loyalitas -5
+    // =========================================================
     public int prosesRewardGratis(
             PaymentBooking booking,
             Integer idKasir
@@ -195,9 +214,7 @@ public class ProsesBayarService {
             throw new IllegalArgumentException("Booking tidak valid.");
         }
 
-        try (
-                Connection conn = DatabaseConnection.getConnection()
-        ) {
+        try (Connection conn = DatabaseConnection.getConnection()) {
             conn.setAutoCommit(false);
 
             try {
@@ -263,6 +280,8 @@ public class ProsesBayarService {
             } catch (Exception e) {
                 conn.rollback();
                 throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
         }
     }
@@ -299,18 +318,18 @@ public class ProsesBayarService {
                 FOR UPDATE
                 """;
 
-        try (
-                PreparedStatement ps = conn.prepareStatement(sql)
-        ) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idBooking);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     LockedBooking item = new LockedBooking();
+
                     item.idBooking = rs.getInt("id_booking");
                     item.idPelanggan = rs.getInt("id_pelanggan");
                     item.status = rs.getString("status");
                     item.harga = rs.getBigDecimal("harga");
+
                     return item;
                 }
             }
@@ -330,9 +349,7 @@ public class ProsesBayarService {
                 WHERE id_booking = ?
                 """;
 
-        try (
-                PreparedStatement ps = conn.prepareStatement(sql)
-        ) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idBooking);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -368,9 +385,7 @@ public class ProsesBayarService {
                 RETURNING id_transaksi
                 """;
 
-        try (
-                PreparedStatement ps = conn.prepareStatement(sql)
-        ) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idBooking);
 
             if (idKasir == null || idKasir <= 0) {
@@ -380,7 +395,7 @@ public class ProsesBayarService {
             }
 
             ps.setBigDecimal(3, safeMoney(total));
-            ps.setString(4, metodeBayar);
+            ps.setString(4, normalizeMetodeBayar(metodeBayar));
             ps.setBigDecimal(5, safeMoney(nominalBayar));
             ps.setBigDecimal(6, safeMoney(kembalian));
             ps.setInt(7, poinDiberikan);
@@ -407,9 +422,7 @@ public class ProsesBayarService {
                 WHERE id_booking = ?
                 """;
 
-        try (
-                PreparedStatement ps = conn.prepareStatement(sql)
-        ) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idBooking);
             ps.executeUpdate();
         }
@@ -424,14 +437,12 @@ public class ProsesBayarService {
         String sql = """
                 UPDATE pelanggan
                 SET
-                    total_kunjungan = total_kunjungan + 1,
-                    poin_loyalitas = poin_loyalitas + ?
+                    total_kunjungan = COALESCE(total_kunjungan, 0) + 1,
+                    poin_loyalitas = COALESCE(poin_loyalitas, 0) + ?
                 WHERE id_pelanggan = ?
                 """;
 
-        try (
-                PreparedStatement ps = conn.prepareStatement(sql)
-        ) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, poin);
             ps.setInt(2, idPelanggan);
             ps.executeUpdate();
@@ -447,17 +458,22 @@ public class ProsesBayarService {
         String sql = """
                 UPDATE pelanggan
                 SET
-                    total_kunjungan = total_kunjungan + 1,
-                    poin_loyalitas = GREATEST(poin_loyalitas - ?, 0)
+                    total_kunjungan = COALESCE(total_kunjungan, 0) + 1,
+                    poin_loyalitas = GREATEST(COALESCE(poin_loyalitas, 0) - ?, 0)
                 WHERE id_pelanggan = ?
+                  AND COALESCE(poin_loyalitas, 0) >= ?
                 """;
 
-        try (
-                PreparedStatement ps = conn.prepareStatement(sql)
-        ) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, poinDigunakan);
             ps.setInt(2, idPelanggan);
-            ps.executeUpdate();
+            ps.setInt(3, poinDigunakan);
+
+            int updated = ps.executeUpdate();
+
+            if (updated == 0) {
+                throw new SQLException("Poin pelanggan belum cukup untuk reward.");
+            }
         }
     }
 
@@ -467,15 +483,13 @@ public class ProsesBayarService {
     ) throws SQLException {
 
         String sql = """
-                SELECT poin_loyalitas
+                SELECT COALESCE(poin_loyalitas, 0) AS poin_loyalitas
                 FROM pelanggan
                 WHERE id_pelanggan = ?
                 FOR UPDATE
                 """;
 
-        try (
-                PreparedStatement ps = conn.prepareStatement(sql)
-        ) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idPelanggan);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -508,9 +522,7 @@ public class ProsesBayarService {
                 VALUES (?, ?, ?, ?, ?)
                 """;
 
-        try (
-                PreparedStatement ps = conn.prepareStatement(sql)
-        ) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idPelanggan);
             ps.setInt(2, idTransaksi);
             ps.setString(3, jenis);

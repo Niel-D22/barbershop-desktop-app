@@ -355,7 +355,7 @@ public class AntrianPage extends JPanel {
 
         JPanel right = new JPanel(new BorderLayout(0, 12));
         right.setOpaque(false);
-        right.setPreferredSize(new Dimension(250, 90));
+        right.setPreferredSize(new Dimension(310, 90));
 
         JPanel topRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         topRight.setOpaque(false);
@@ -369,18 +369,23 @@ public class AntrianPage extends JPanel {
         if ("MENUNGGU".equals(item.getStatus())) {
             action.add(darkButton("Check-in", () -> handleCheckIn(item)));
             action.add(dangerButton("Batal", () -> handleCancel(item)));
+            action.add(deleteButton("Hapus", () -> handleDeleteBooking(item)));
 
         } else if ("DIPROSES".equals(item.getStatus())) {
             action.add(disabledButton("Menunggu Barber"));
+            action.add(deleteButton("Hapus", () -> handleDeleteBooking(item)));
 
         } else if ("DICUKUR".equals(item.getStatus())) {
             action.add(disabledButton("Sedang Dicukur"));
+            action.add(deleteButton("Hapus", () -> handleDeleteBooking(item)));
 
         } else if ("MENUNGGU_PEMBAYARAN".equals(item.getStatus())) {
             action.add(outlineButton("Bayar", () -> showPaymentInfo(item)));
+            action.add(deleteButton("Hapus", () -> handleDeleteBooking(item)));
 
         } else {
             action.add(disabledButton(statusToUi(item.getStatus())));
+            action.add(deleteButton("Hapus", () -> handleDeleteBooking(item)));
         }
 
         right.add(topRight, BorderLayout.NORTH);
@@ -527,6 +532,45 @@ public class AntrianPage extends JPanel {
                     this,
                     e.getMessage(),
                     "Gagal",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
+    private void handleDeleteBooking(AntrianKasirItem item) {
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Hapus booking ini secara permanen?\n\n"
+                        + "Booking: " + item.getKodeBooking()
+                        + "\nPelanggan: " + item.getNamaPelanggan()
+                        + "\nLayanan: " + item.getNamaLayanan()
+                        + "\n\nData booking akan dihapus dari database.",
+                "Konfirmasi Hapus Booking",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            antrianKasirService.hapusBooking(item);
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Booking berhasil dihapus.",
+                    "Berhasil",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+            loadData();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    e.getMessage(),
+                    "Gagal Menghapus Booking",
                     JOptionPane.ERROR_MESSAGE
             );
         }
@@ -707,6 +751,15 @@ public class AntrianPage extends JPanel {
         button.setBackground(Color.WHITE);
         button.setForeground(RED);
         button.setBorder(BorderFactory.createLineBorder(new Color(245, 190, 190)));
+        button.addActionListener(e -> action.run());
+        return button;
+    }
+
+    private JButton deleteButton(String text, Runnable action) {
+        JButton button = baseButton(text, 86);
+        button.setBackground(RED);
+        button.setForeground(Color.WHITE);
+        button.setBorder(BorderFactory.createLineBorder(RED));
         button.addActionListener(e -> action.run());
         return button;
     }

@@ -48,6 +48,12 @@ public class DashboardPage extends JPanel {
     private JPanel recentContainer;
     private JPanel topBarberContainer;
 
+    private JButton refreshButton;
+    private JLabel loadingLabel;
+    private Timer loadingTimer;
+    private int loadingDotCount = 0;
+    private boolean dashboardLoading = false;
+
     private List<OwnerDashboardChartItem> chartData = new ArrayList<>();
     private OwnerBookingStats bookingStats = new OwnerBookingStats(0, 0, 0);
 
@@ -121,12 +127,19 @@ public class DashboardPage extends JPanel {
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
         right.setOpaque(false);
 
-        right.add(createInfoPill("Hari Ini"));
-        right.add(createDarkButton(
+        loadingLabel = new JLabel("");
+        loadingLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        loadingLabel.setForeground(MUTED);
+
+        refreshButton = createDarkButton(
                 "Refresh",
-                "icons/Dashboard/refresh-cw.svg",
+                "icons/Dashboard/refresh-ccw.svg",
                 this::loadData
-        ));
+        );
+
+        right.add(loadingLabel);
+        right.add(createInfoPill("Hari Ini"));
+        right.add(refreshButton);
 
         panel.add(left, BorderLayout.WEST);
         panel.add(right, BorderLayout.EAST);
@@ -196,6 +209,12 @@ public class DashboardPage extends JPanel {
     }
 
     private void loadData() {
+        if (dashboardLoading) {
+            return;
+        }
+
+        setDashboardLoading(true);
+
         SwingWorker<Void, Void> worker = new SwingWorker<>() {
 
             private OwnerDashboardStats stats;
@@ -241,11 +260,64 @@ public class DashboardPage extends JPanel {
                             "Error",
                             JOptionPane.ERROR_MESSAGE
                     );
+                } finally {
+                    setDashboardLoading(false);
                 }
             }
         };
 
         worker.execute();
+    }
+
+    private void setDashboardLoading(boolean loading) {
+        dashboardLoading = loading;
+
+        if (refreshButton != null) {
+            refreshButton.setEnabled(!loading);
+            refreshButton.setText(loading ? "Memuat..." : "Refresh");
+            refreshButton.setCursor(
+                    loading
+                            ? Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR)
+                            : Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+            );
+        }
+
+        if (loading) {
+            startLoadingAnimation();
+        } else {
+            stopLoadingAnimation();
+        }
+    }
+
+    private void startLoadingAnimation() {
+        stopLoadingAnimation();
+
+        loadingDotCount = 0;
+
+        loadingTimer = new Timer(350, e -> {
+            loadingDotCount = (loadingDotCount + 1) % 4;
+
+            String dots = ".".repeat(loadingDotCount);
+
+            if (loadingLabel != null) {
+                loadingLabel.setText("Memuat data" + dots);
+            }
+        });
+
+        loadingTimer.start();
+    }
+
+    private void stopLoadingAnimation() {
+        if (loadingTimer != null) {
+            loadingTimer.stop();
+            loadingTimer = null;
+        }
+
+        loadingDotCount = 0;
+
+        if (loadingLabel != null) {
+            loadingLabel.setText("");
+        }
     }
 
     private void renderStats(OwnerDashboardStats stats) {
@@ -716,8 +788,15 @@ public class DashboardPage extends JPanel {
         btn.setBorderPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btn.setIcon(svgIcon(iconPath, 15, 15, Color.WHITE).getIcon());
         btn.setBorder(new EmptyBorder(12, 18, 12, 18));
+
+        JLabel iconLabel = svgIcon(iconPath, 15, 15, Color.WHITE);
+
+        if (iconLabel.getIcon() != null) {
+            btn.setIcon(iconLabel.getIcon());
+            btn.setIconTextGap(10);
+        }
+
         btn.addActionListener(e -> action.run());
 
         return btn;
@@ -749,7 +828,7 @@ public class DashboardPage extends JPanel {
         }
 
         DecimalFormatSymbols symbols =
-                new DecimalFormatSymbols(Locale.of("id", "ID"));
+                new DecimalFormatSymbols(Locale.forLanguageTag("id-ID"));
 
         symbols.setGroupingSeparator('.');
 
@@ -937,7 +1016,7 @@ public class DashboardPage extends JPanel {
                             size,
                             size,
                             90,
-                            -(360 * value / 100),
+                            -(360.0 * value / 100.0),
                             Arc2D.OPEN
                     )
             );

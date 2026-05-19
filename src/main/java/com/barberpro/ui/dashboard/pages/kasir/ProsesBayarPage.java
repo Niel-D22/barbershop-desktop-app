@@ -31,13 +31,11 @@ public class ProsesBayarPage extends JPanel {
     private final Color SOFT = new Color(246, 246, 246);
     private final Color WARNING_BG = new Color(255, 247, 237);
     private final Color WARNING = new Color(245, 158, 11);
+    private final Color BLUE_BG = new Color(239, 246, 255);
+    private final Color BLUE = new Color(37, 99, 235);
 
     private final ProsesBayarService prosesBayarService = new ProsesBayarService();
 
-    /*
-     * Value ini yang dikirim ke database.
-     * Database hanya menerima CASH, QRIS, TRANSFER.
-     */
     private String selectedPaymentMethod = "CASH";
 
     private PaymentBooking selectedBooking;
@@ -57,6 +55,9 @@ public class ProsesBayarPage extends JPanel {
     private JLabel detailHargaLabel;
     private JLabel detailSubtotalLabel;
     private JLabel detailTotalLabel;
+    private JLabel detailKunjunganLabel;
+    private JLabel detailPoinLabel;
+    private JLabel detailRewardStatusLabel;
 
     private JLabel cashTotalLabel;
     private JLabel cashKembalianLabel;
@@ -67,6 +68,9 @@ public class ProsesBayarPage extends JPanel {
     private JLabel summaryTotalLabel;
     private JLabel summaryNominalLabel;
     private JLabel summaryKembalianLabel;
+    private JLabel summaryPoinLabel;
+
+    private RoundedButton rewardButton;
 
     public ProsesBayarPage() {
         setLayout(new BorderLayout());
@@ -89,7 +93,7 @@ public class ProsesBayarPage extends JPanel {
 
         JPanel content = new JPanel(new BorderLayout(0, 22));
         content.setOpaque(false);
-        content.setBorder(new EmptyBorder(28, 32, 26, 32));
+        content.setBorder(new EmptyBorder(24, 24, 24, 24));
 
         content.add(createHeader(), BorderLayout.NORTH);
         content.add(createMainContent(), BorderLayout.CENTER);
@@ -120,7 +124,7 @@ public class ProsesBayarPage extends JPanel {
         title.setFont(new Font("Segoe UI", Font.BOLD, 32));
         title.setForeground(TEXT);
 
-        JLabel subtitle = new JLabel("Pilih booking yang siap dibayar, cek detail, lalu selesaikan transaksi.");
+        JLabel subtitle = new JLabel("Pilih booking, cek pelanggan, lalu selesaikan pembayaran.");
         subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subtitle.setForeground(MUTED);
 
@@ -142,15 +146,15 @@ public class ProsesBayarPage extends JPanel {
     private JPanel createMainContent() {
         JPanel rootMain = new JPanel(
                 new MigLayout(
-                        "insets 0, gap 20",
-                        "[grow 34, fill][grow 33, fill][grow 33, fill]",
+                        "insets 0, gap 14, fill",
+                        "[grow 36,fill][grow 34,fill][grow 30,fill]",
                         "[grow, fill]"
                 )
         );
 
         rootMain.setOpaque(false);
 
-        centerWrapper = new JPanel(new BorderLayout(0, 20));
+        centerWrapper = new JPanel(new BorderLayout(0, 16));
         centerWrapper.setOpaque(false);
         centerWrapper.add(createPaymentMethodSection(), BorderLayout.NORTH);
         centerWrapper.add(createPaymentInputSection(), BorderLayout.CENTER);
@@ -165,11 +169,6 @@ public class ProsesBayarPage extends JPanel {
 
         return rootMain;
     }
-
-    // =========================================================
-    // LOAD DATA
-    // =========================================================
-
     private void loadBookingSiapBayar() {
         SwingWorker<List<PaymentBooking>, Void> worker = new SwingWorker<>() {
             @Override
@@ -260,15 +259,12 @@ public class ProsesBayarPage extends JPanel {
         refreshDetailData();
         refreshCashData();
         refreshSummaryData();
+        refreshRewardButtonState();
     }
-
-    // =========================================================
-    // DETAIL TRANSAKSI
-    // =========================================================
 
     private JPanel createDetailSection() {
         ShadowPanel card = new ShadowPanel(30);
-        card.setLayout(new BorderLayout(0, 20));
+        card.setLayout(new BorderLayout(0, 18));
         card.setBorder(new EmptyBorder(24, 24, 24, 24));
 
         JLabel title = sectionTitle("Detail Booking");
@@ -276,11 +272,14 @@ public class ProsesBayarPage extends JPanel {
         JPanel body = new JPanel();
         body.setOpaque(false);
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+        body.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         bookingCombo = new JComboBox<>();
         bookingCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         bookingCombo.setBackground(CARD);
         bookingCombo.setForeground(TEXT);
+        bookingCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        bookingCombo.setPreferredSize(new Dimension(100, 42));
         bookingCombo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
 
         bookingCombo.addActionListener(e -> {
@@ -295,12 +294,23 @@ public class ProsesBayarPage extends JPanel {
         body.add(smallLabel("Booking Siap Bayar"));
         body.add(Box.createVerticalStrut(8));
         body.add(bookingCombo);
-        body.add(Box.createVerticalStrut(22));
+        body.add(Box.createVerticalStrut(18));
         body.add(separator());
-        body.add(Box.createVerticalStrut(20));
+        body.add(Box.createVerticalStrut(18));
 
         body.add(createCustomerInfo());
-        body.add(Box.createVerticalStrut(22));
+        body.add(Box.createVerticalStrut(16));
+
+        body.add(createCustomerStatsBox());
+        body.add(Box.createVerticalStrut(18));
+
+        detailRewardStatusLabel = new JLabel("-");
+        detailRewardStatusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        detailRewardStatusLabel.setForeground(MUTED);
+        detailRewardStatusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        body.add(detailRewardStatusLabel);
+        body.add(Box.createVerticalStrut(18));
         body.add(separator());
         body.add(Box.createVerticalStrut(18));
 
@@ -310,10 +320,11 @@ public class ProsesBayarPage extends JPanel {
         detailBookingLabel = new JLabel("-");
         detailBookingLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
         detailBookingLabel.setForeground(TEXT);
+        detailBookingLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         body.add(detailBookingLabel);
 
-        body.add(Box.createVerticalStrut(22));
+        body.add(Box.createVerticalStrut(18));
         body.add(separator());
         body.add(Box.createVerticalStrut(18));
 
@@ -323,6 +334,7 @@ public class ProsesBayarPage extends JPanel {
         JPanel serviceRow = new JPanel(new BorderLayout());
         serviceRow.setOpaque(false);
         serviceRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
+        serviceRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         detailLayananLabel = new JLabel("-");
         detailLayananLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -336,7 +348,7 @@ public class ProsesBayarPage extends JPanel {
         serviceRow.add(detailHargaLabel, BorderLayout.EAST);
 
         body.add(serviceRow);
-        body.add(Box.createVerticalStrut(24));
+        body.add(Box.createVerticalStrut(20));
         body.add(separator());
         body.add(Box.createVerticalStrut(18));
 
@@ -345,13 +357,14 @@ public class ProsesBayarPage extends JPanel {
         body.add(Box.createVerticalStrut(12));
 
         body.add(rowText("Diskon", new JLabel("Rp 0"), false, false));
-        body.add(Box.createVerticalStrut(22));
-        body.add(separator());
         body.add(Box.createVerticalStrut(20));
+        body.add(separator());
+        body.add(Box.createVerticalStrut(18));
 
         JPanel total = new JPanel(new BorderLayout());
         total.setOpaque(false);
         total.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+        total.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel totalLabel = new JLabel("Total Bayar");
         totalLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
@@ -375,7 +388,10 @@ public class ProsesBayarPage extends JPanel {
     private JPanel createCustomerInfo() {
         JPanel panel = new JPanel(new BorderLayout(14, 0));
         panel.setOpaque(false);
+        panel.setPreferredSize(new Dimension(100, 70));
+        panel.setMinimumSize(new Dimension(0, 70));
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         CirclePanel avatar = new CirclePanel();
         avatar.setBackground(SOFT);
@@ -386,16 +402,19 @@ public class ProsesBayarPage extends JPanel {
         JPanel text = new JPanel();
         text.setOpaque(false);
         text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+        text.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel customerLabel = smallLabel("Pelanggan");
 
         detailNamaLabel = new JLabel("-");
         detailNamaLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
         detailNamaLabel.setForeground(TEXT);
+        detailNamaLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         detailHpLabel = new JLabel("-");
         detailHpLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         detailHpLabel.setForeground(MUTED);
+        detailHpLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         text.add(customerLabel);
         text.add(Box.createVerticalStrut(4));
@@ -404,6 +423,74 @@ public class ProsesBayarPage extends JPanel {
         text.add(detailHpLabel);
 
         panel.add(avatar, BorderLayout.WEST);
+        panel.add(text, BorderLayout.CENTER);
+
+        return panel;
+    }
+    private JPanel createCustomerStatsBox() {
+        JPanel wrapper = new JPanel(new GridLayout(1, 2, 10, 0));
+        wrapper.setOpaque(false);
+        wrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
+        wrapper.setPreferredSize(new Dimension(100, 62));
+        wrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        detailKunjunganLabel = new JLabel("0 kali");
+        detailPoinLabel = new JLabel("0 poin");
+
+        wrapper.add(customerMiniCard(
+                "Kunjungan",
+                detailKunjunganLabel,
+                "icons/KasirPOS/clock-3.svg",
+                BLUE_BG,
+                BLUE
+        ));
+
+        wrapper.add(customerMiniCard(
+                "Reward Point",
+                detailPoinLabel,
+                "icons/RiwayatTransaksi/circle-dollar-sign.svg",
+                SUCCESS_BG,
+                SUCCESS
+        ));
+
+        return wrapper;
+    }
+
+    private JPanel customerMiniCard(
+            String title,
+            JLabel valueLabel,
+            String iconPath,
+            Color bg,
+            Color color
+    ) {
+        RoundedPanel panel = new RoundedPanel(16);
+        panel.setBackground(bg);
+        panel.setLayout(new BorderLayout(10, 0));
+        panel.setBorder(new EmptyBorder(10, 12, 10, 12));
+
+        JPanel iconBox = new JPanel(new GridBagLayout());
+        iconBox.setOpaque(false);
+        iconBox.setPreferredSize(new Dimension(26, 26));
+        iconBox.add(svgIcon(iconPath, 17, 17, color));
+
+        JPanel text = new JPanel();
+        text.setOpaque(false);
+        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        titleLabel.setForeground(MUTED);
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        valueLabel.setForeground(TEXT);
+        valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        text.add(titleLabel);
+        text.add(Box.createVerticalStrut(3));
+        text.add(valueLabel);
+
+        panel.add(iconBox, BorderLayout.WEST);
         panel.add(text, BorderLayout.CENTER);
 
         return panel;
@@ -420,6 +507,11 @@ public class ProsesBayarPage extends JPanel {
             detailHargaLabel.setText("Rp 0");
             detailSubtotalLabel.setText("Rp 0");
             detailTotalLabel.setText("Rp 0");
+
+            if (detailKunjunganLabel != null) detailKunjunganLabel.setText("0 kali");
+            if (detailPoinLabel != null) detailPoinLabel.setText("0 poin");
+            if (detailRewardStatusLabel != null) detailRewardStatusLabel.setText("-");
+
             return;
         }
 
@@ -430,11 +522,27 @@ public class ProsesBayarPage extends JPanel {
         detailHargaLabel.setText(formatMoney(selectedBooking.getHarga()));
         detailSubtotalLabel.setText(formatMoney(selectedBooking.getHarga()));
         detailTotalLabel.setText(formatMoney(selectedBooking.getHarga()));
-    }
 
-    // =========================================================
-    // METODE PEMBAYARAN
-    // =========================================================
+        if (detailKunjunganLabel != null) {
+            int kunjunganKe = selectedBooking.getTotalKunjungan() + 1;
+            detailKunjunganLabel.setText("Layanan ke-" + kunjunganKe);
+        }
+
+        if (detailPoinLabel != null) {
+            detailPoinLabel.setText(selectedBooking.getPoinLoyalitas() + " poin");
+        }
+
+        if (detailRewardStatusLabel != null) {
+            if (selectedBooking.bisaRewardGratis()) {
+                detailRewardStatusLabel.setText("Reward tersedia. Bisa pakai 5 poin untuk layanan gratis.");
+                detailRewardStatusLabel.setForeground(SUCCESS);
+            } else {
+                int sisa = Math.max(5 - selectedBooking.getPoinLoyalitas(), 0);
+                detailRewardStatusLabel.setText("Reward belum tersedia. Butuh " + sisa + " poin lagi.");
+                detailRewardStatusLabel.setForeground(MUTED);
+            }
+        }
+    }
 
     private JPanel createPaymentMethodSection() {
         ShadowPanel card = new ShadowPanel(30);
@@ -505,6 +613,7 @@ public class ProsesBayarPage extends JPanel {
         card.setBorder(new EmptyBorder(14, 16, 14, 16));
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 78));
         card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         RoundedPanel iconBox = new RoundedPanel(14);
         iconBox.setBackground(new Color(245, 245, 245));
@@ -519,10 +628,12 @@ public class ProsesBayarPage extends JPanel {
         JLabel name = new JLabel(title);
         name.setFont(new Font("Segoe UI", Font.BOLD, 14));
         name.setForeground(TEXT);
+        name.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel description = new JLabel(desc);
         description.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         description.setForeground(MUTED);
+        description.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         text.add(Box.createVerticalGlue());
         text.add(name);
@@ -573,10 +684,6 @@ public class ProsesBayarPage extends JPanel {
         return card;
     }
 
-    // =========================================================
-    // INPUT PEMBAYARAN
-    // =========================================================
-
     private JPanel createPaymentInputSection() {
         if (selectedPaymentMethod.equals("CASH")) {
             return createCashSection();
@@ -619,6 +726,7 @@ public class ProsesBayarPage extends JPanel {
         inputBox.setBorder(new EmptyBorder(0, 16, 0, 16));
         inputBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
         inputBox.setPreferredSize(new Dimension(100, 50));
+        inputBox.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         nominalField = new JTextField("0");
         nominalField.setBorder(null);
@@ -656,21 +764,12 @@ public class ProsesBayarPage extends JPanel {
 
         body.add(Box.createVerticalStrut(18));
 
-        RoundedPanel noteBox = new RoundedPanel(18);
-        noteBox.setBackground(SUCCESS_BG);
-        noteBox.setLayout(new BorderLayout(12, 0));
-        noteBox.setBorder(new EmptyBorder(14, 16, 14, 16));
-        noteBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
-
-        noteBox.add(svgIcon("icons/KasirPOS/receipt-text.svg", 22, 22, SUCCESS), BorderLayout.WEST);
-
-        JLabel note = new JLabel("Cek nominal dan kembalian sebelum menyelesaikan pembayaran.");
-        note.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        note.setForeground(TEXT);
-
-        noteBox.add(note, BorderLayout.CENTER);
-
-        body.add(noteBox);
+        body.add(infoBox(
+                "Cek nominal dan kembalian sebelum menyelesaikan pembayaran.",
+                "icons/KasirPOS/receipt-text.svg",
+                SUCCESS_BG,
+                SUCCESS
+        ));
 
         card.add(titleBox, BorderLayout.NORTH);
         card.add(body, BorderLayout.CENTER);
@@ -701,32 +800,37 @@ public class ProsesBayarPage extends JPanel {
         RoundedPanel qrBox = new RoundedPanel(24);
         qrBox.setBackground(new Color(250, 250, 250));
         qrBox.setRoundedBorder(BORDER, 1);
-        qrBox.setLayout(new BorderLayout());
+        qrBox.setLayout(new BorderLayout(18, 0));
         qrBox.setBorder(new EmptyBorder(22, 22, 22, 22));
         qrBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 190));
         qrBox.setPreferredSize(new Dimension(100, 190));
+        qrBox.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel qrLeft = new JPanel(new GridBagLayout());
         qrLeft.setOpaque(false);
-        qrLeft.setPreferredSize(new Dimension(120, 120));
-        qrLeft.add(svgIcon("icons/KasirPOS/credit-card.svg", 82, 82, TEXT));
+        qrLeft.setPreferredSize(new Dimension(110, 120));
+        qrLeft.add(svgIcon("icons/KasirPOS/credit-card.svg", 72, 72, TEXT));
 
         JPanel qrText = new JPanel();
         qrText.setOpaque(false);
         qrText.setLayout(new BoxLayout(qrText, BoxLayout.Y_AXIS));
 
         JLabel amountLabel = smallLabel("Total Pembayaran");
+
         JLabel total = new JLabel(getSelectedTotalText());
         total.setFont(new Font("Segoe UI", Font.BOLD, 25));
         total.setForeground(TEXT);
+        total.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel status = new JLabel("Menunggu konfirmasi pembayaran");
         status.setFont(new Font("Segoe UI", Font.BOLD, 14));
         status.setForeground(TEXT);
+        status.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel note = new JLabel("Setelah pelanggan membayar, klik tombol di Ringkasan Pembayaran.");
+        JLabel note = new JLabel("Klik tombol ringkasan setelah pembayaran masuk.");
         note.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         note.setForeground(MUTED);
+        note.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         qrText.add(amountLabel);
         qrText.add(Box.createVerticalStrut(8));
@@ -742,26 +846,36 @@ public class ProsesBayarPage extends JPanel {
         body.add(qrBox);
         body.add(Box.createVerticalStrut(18));
 
-        RoundedPanel warningBox = new RoundedPanel(18);
-        warningBox.setBackground(WARNING_BG);
-        warningBox.setLayout(new BorderLayout(12, 0));
-        warningBox.setBorder(new EmptyBorder(14, 16, 14, 16));
-        warningBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
-
-        warningBox.add(svgIcon("icons/KasirPOS/clock-3.svg", 22, 22, WARNING), BorderLayout.WEST);
-
-        JLabel warning = new JLabel("Pastikan pembayaran QRIS sudah masuk sebelum menyelesaikan transaksi.");
-        warning.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        warning.setForeground(TEXT);
-
-        warningBox.add(warning, BorderLayout.CENTER);
-
-        body.add(warningBox);
+        body.add(infoBox(
+                "Pastikan pembayaran QRIS sudah masuk sebelum transaksi diselesaikan.",
+                "icons/KasirPOS/clock-3.svg",
+                WARNING_BG,
+                WARNING
+        ));
 
         card.add(titleBox, BorderLayout.NORTH);
         card.add(body, BorderLayout.CENTER);
 
         return card;
+    }
+
+    private RoundedPanel infoBox(String text, String iconPath, Color bg, Color iconColor) {
+        RoundedPanel box = new RoundedPanel(18);
+        box.setBackground(bg);
+        box.setLayout(new BorderLayout(12, 0));
+        box.setBorder(new EmptyBorder(14, 16, 14, 16));
+        box.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
+        box.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        box.add(svgIcon(iconPath, 22, 22, iconColor), BorderLayout.WEST);
+
+        JLabel label = new JLabel("<html><div style='width:260px;'>" + text + "</div></html>");
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        label.setForeground(TEXT);
+
+        box.add(label, BorderLayout.CENTER);
+
+        return box;
     }
 
     private void refreshCashData() {
@@ -780,21 +894,17 @@ public class ProsesBayarPage extends JPanel {
         cashKembalianLabel.setText(formatMoney(kembalian));
     }
 
-    // =========================================================
-    // RINGKASAN
-    // =========================================================
-
     private JPanel createSummarySection() {
         ShadowPanel card = new ShadowPanel(30);
-        card.setLayout(new BorderLayout(0, 22));
-        card.setBorder(new EmptyBorder(24, 24, 24, 24));
+        card.setLayout(new BorderLayout(0, 18));
+        card.setBorder(new EmptyBorder(22, 20, 22, 20));
 
         JPanel titleBox = new JPanel();
         titleBox.setOpaque(false);
         titleBox.setLayout(new BoxLayout(titleBox, BoxLayout.Y_AXIS));
 
         JLabel title = sectionTitle("Ringkasan Pembayaran");
-        JLabel subtitle = smallLabel("Periksa ringkasan sebelum transaksi disimpan.");
+        JLabel subtitle = smallLabel("Periksa data sebelum transaksi disimpan.");
 
         titleBox.add(title);
         titleBox.add(Box.createVerticalStrut(5));
@@ -806,37 +916,40 @@ public class ProsesBayarPage extends JPanel {
 
         RoundedPanel statusBox = new RoundedPanel(20);
         statusBox.setBackground(SUCCESS_BG);
-        statusBox.setLayout(new BorderLayout(14, 0));
-        statusBox.setBorder(new EmptyBorder(16, 16, 16, 16));
-        statusBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 84));
+        statusBox.setLayout(new BorderLayout(12, 0));
+        statusBox.setBorder(new EmptyBorder(14, 14, 14, 14));
+        statusBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 76));
+        statusBox.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         CirclePanel iconCircle = new CirclePanel();
         iconCircle.setBackground(Color.WHITE);
-        iconCircle.setFixedSize(46, 46);
+        iconCircle.setFixedSize(42, 42);
         iconCircle.setLayout(new GridBagLayout());
-        iconCircle.add(svgIcon("icons/KasirPOS/receipt-text.svg", 24, 24, SUCCESS));
+        iconCircle.add(svgIcon("icons/KasirPOS/receipt-text.svg", 22, 22, SUCCESS));
 
         JPanel statusText = new JPanel();
         statusText.setOpaque(false);
         statusText.setLayout(new BoxLayout(statusText, BoxLayout.Y_AXIS));
 
         JLabel ready = new JLabel("Siap Diselesaikan");
-        ready.setFont(new Font("Segoe UI", Font.BOLD, 17));
+        ready.setFont(new Font("Segoe UI", Font.BOLD, 15));
         ready.setForeground(TEXT);
+        ready.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel desc = new JLabel("Satu tombol final untuk menyimpan transaksi.");
-        desc.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JLabel desc = new JLabel("Bayar normal atau pakai reward.");
+        desc.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         desc.setForeground(MUTED);
+        desc.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         statusText.add(ready);
-        statusText.add(Box.createVerticalStrut(5));
+        statusText.add(Box.createVerticalStrut(4));
         statusText.add(desc);
 
         statusBox.add(iconCircle, BorderLayout.WEST);
         statusBox.add(statusText, BorderLayout.CENTER);
 
         body.add(statusBox);
-        body.add(Box.createVerticalStrut(22));
+        body.add(Box.createVerticalStrut(18));
 
         summaryBookingLabel = new JLabel("-");
         summaryPelangganLabel = new JLabel("-");
@@ -844,49 +957,53 @@ public class ProsesBayarPage extends JPanel {
         summaryTotalLabel = new JLabel("Rp 0");
         summaryNominalLabel = new JLabel("Rp 0");
         summaryKembalianLabel = new JLabel("Rp 0");
+        summaryPoinLabel = new JLabel("0 poin");
 
         body.add(summaryRow("icons/KasirPOS/receipt-text.svg", "Booking", summaryBookingLabel, TEXT));
-        body.add(Box.createVerticalStrut(18));
+        body.add(Box.createVerticalStrut(12));
         body.add(summaryRow("icons/KasirPOS/user-round.svg", "Pelanggan", summaryPelangganLabel, TEXT));
-        body.add(Box.createVerticalStrut(18));
+        body.add(Box.createVerticalStrut(12));
+        body.add(summaryRow("icons/RiwayatTransaksi/circle-dollar-sign.svg", "Poin", summaryPoinLabel, BLUE));
+        body.add(Box.createVerticalStrut(12));
         body.add(summaryRow("icons/RiwayatTransaksi/banknote.svg", "Metode", summaryMetodeLabel, TEXT));
-        body.add(Box.createVerticalStrut(18));
+        body.add(Box.createVerticalStrut(14));
         body.add(separator());
-        body.add(Box.createVerticalStrut(18));
-        body.add(summaryRow("icons/KasirPOS/receipt-text.svg", "Total Bayar", summaryTotalLabel, TEXT));
-        body.add(Box.createVerticalStrut(18));
-        body.add(summaryRow("icons/KasirPOS/wallet.svg", "Nominal Bayar", summaryNominalLabel, TEXT));
-        body.add(Box.createVerticalStrut(18));
-        body.add(summaryRow("icons/RiwayatTransaksi/circle-dollar-sign.svg", "Kembalian", summaryKembalianLabel, SUCCESS));
+        body.add(Box.createVerticalStrut(14));
+        body.add(summaryRow("icons/KasirPOS/receipt-text.svg", "Total", summaryTotalLabel, TEXT));
+        body.add(Box.createVerticalStrut(12));
+        body.add(summaryRow("icons/KasirPOS/wallet.svg", "Bayar", summaryNominalLabel, TEXT));
+        body.add(Box.createVerticalStrut(12));
+        body.add(summaryRow("icons/RiwayatTransaksi/circle-dollar-sign.svg", "Kembali", summaryKembalianLabel, SUCCESS));
 
         body.add(Box.createVerticalGlue());
-        body.add(Box.createVerticalStrut(24));
+        body.add(Box.createVerticalStrut(18));
 
         RoundedButton process = createDarkButton("Selesaikan Pembayaran", 16);
+        process.setFont(new Font("Segoe UI", Font.BOLD, 12));
         process.addActionListener(e -> handleProsesPembayaran());
 
-        JPanel processWrap = new JPanel(new BorderLayout());
-        processWrap.setOpaque(false);
-        processWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 56));
-        processWrap.setPreferredSize(new Dimension(100, 56));
-        processWrap.add(process, BorderLayout.CENTER);
+        body.add(buttonWrap(process, 54));
+        body.add(Box.createVerticalStrut(10));
 
-        body.add(processWrap);
-        body.add(Box.createVerticalStrut(14));
+        rewardButton = createOutlineButton(
+                "Gunakan Reward",
+                "icons/RiwayatTransaksi/circle-dollar-sign.svg",
+                16
+        );
+        rewardButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        rewardButton.addActionListener(e -> handleRewardPayment());
+
+        body.add(buttonWrap(rewardButton, 50));
+        body.add(Box.createVerticalStrut(10));
 
         RoundedButton print = createOutlineButton(
                 "Cetak Struk",
                 "icons/KasirPOS/receipt-text.svg",
                 16
         );
+        print.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
-        JPanel printWrap = new JPanel(new BorderLayout());
-        printWrap.setOpaque(false);
-        printWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 52));
-        printWrap.setPreferredSize(new Dimension(100, 52));
-        printWrap.add(print, BorderLayout.CENTER);
-
-        body.add(printWrap);
+        body.add(buttonWrap(print, 50));
 
         card.add(titleBox, BorderLayout.NORTH);
         card.add(body, BorderLayout.CENTER);
@@ -896,31 +1013,50 @@ public class ProsesBayarPage extends JPanel {
         return card;
     }
 
-    private JPanel summaryRow(String iconPath, String label, JLabel valueText, Color valueColor) {
-        JPanel row = new JPanel(new BorderLayout(14, 0));
-        row.setOpaque(false);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
+    private JPanel buttonWrap(JButton button, int height) {
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.setOpaque(false);
+        wrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
+        wrap.setPreferredSize(new Dimension(100, height));
+        wrap.setMinimumSize(new Dimension(0, height));
+        wrap.setAlignmentX(Component.LEFT_ALIGNMENT);
+        wrap.add(button, BorderLayout.CENTER);
+        return wrap;
+    }
 
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+    private JPanel summaryRow(String iconPath, String label, JLabel valueText, Color valueColor) {
+        JPanel row = new JPanel(
+                new MigLayout(
+                        "insets 0, gap 8, fillx",
+                        "[grow 45,fill][grow 55,fill]",
+                        "[28]"
+                )
+        );
+
+        row.setOpaque(false);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         left.setOpaque(false);
-        left.add(svgIcon(iconPath, 16, 16, TEXT));
+
+        left.add(svgIcon(iconPath, 15, 15, TEXT));
 
         JLabel labelText = new JLabel(label);
-        labelText.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        labelText.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         labelText.setForeground(MUTED);
 
         left.add(labelText);
 
-        valueText.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        valueText.setFont(new Font("Segoe UI", Font.BOLD, 13));
         valueText.setForeground(valueColor);
         valueText.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        row.add(left, BorderLayout.WEST);
-        row.add(valueText, BorderLayout.EAST);
+        row.add(left, "grow");
+        row.add(valueText, "grow");
 
         return row;
     }
-
     private void refreshSummaryData() {
         if (summaryMetodeLabel == null) return;
 
@@ -950,6 +1086,12 @@ public class ProsesBayarPage extends JPanel {
                         : emptyDash(selectedBooking.getNamaPelanggan())
         );
 
+        summaryPoinLabel.setText(
+                selectedBooking == null
+                        ? "0 poin"
+                        : selectedBooking.getPoinLoyalitas() + " poin"
+        );
+
         summaryMetodeLabel.setText(getPaymentMethodLabel());
         summaryTotalLabel.setText(formatMoney(total));
 
@@ -963,6 +1105,27 @@ public class ProsesBayarPage extends JPanel {
                 selectedPaymentMethod.equals("CASH")
                         ? formatMoney(kembalian)
                         : "-"
+        );
+
+        refreshRewardButtonState();
+    }
+
+    private void refreshRewardButtonState() {
+        if (rewardButton == null) return;
+
+        boolean bisaReward = selectedBooking != null && selectedBooking.bisaRewardGratis();
+
+        rewardButton.setEnabled(bisaReward);
+        rewardButton.setText(
+                bisaReward
+                        ? "Gunakan Reward"
+                        : "Reward Belum Cukup"
+        );
+
+        rewardButton.setCursor(
+                bisaReward
+                        ? new Cursor(Cursor.HAND_CURSOR)
+                        : new Cursor(Cursor.DEFAULT_CURSOR)
         );
     }
 
@@ -984,10 +1147,6 @@ public class ProsesBayarPage extends JPanel {
 
         refreshAllData();
     }
-
-    // =========================================================
-    // PAYMENT ACTION
-    // =========================================================
 
     private void handleProsesPembayaran() {
         if (selectedBooking == null) {
@@ -1045,7 +1204,9 @@ public class ProsesBayarPage extends JPanel {
 
             JOptionPane.showMessageDialog(
                     this,
-                    "Pembayaran berhasil diselesaikan.\nID Transaksi: TRX-"
+                    "Pembayaran berhasil diselesaikan.\n"
+                            + "Pelanggan mendapat 1 poin.\n"
+                            + "ID Transaksi: TRX-"
                             + String.format("%04d", idTransaksi),
                     "Berhasil",
                     JOptionPane.INFORMATION_MESSAGE
@@ -1063,14 +1224,76 @@ public class ProsesBayarPage extends JPanel {
         }
     }
 
-    // =========================================================
-    // SMALL COMPONENTS
-    // =========================================================
+    private void handleRewardPayment() {
+        if (selectedBooking == null) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Pilih booking terlebih dahulu.",
+                    "Validasi",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        if (!selectedBooking.bisaRewardGratis()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Poin pelanggan belum cukup.\nButuh 5 poin untuk menggunakan reward.",
+                    "Reward Tidak Tersedia",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Gunakan 5 poin untuk layanan gratis?\n\n"
+                        + "Pelanggan: " + selectedBooking.getNamaPelanggan()
+                        + "\nPoin saat ini: " + selectedBooking.getPoinLoyalitas()
+                        + "\nTotal bayar menjadi Rp 0.",
+                "Konfirmasi Reward",
+                JOptionPane.YES_NO_OPTION
+        );
+
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            Integer idKasir = null;
+
+            int idTransaksi = prosesBayarService.prosesRewardGratis(
+                    selectedBooking,
+                    idKasir
+            );
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Reward berhasil digunakan.\n"
+                            + "5 poin pelanggan telah dipotong.\n"
+                            + "ID Transaksi: TRX-"
+                            + String.format("%04d", idTransaksi),
+                    "Reward Berhasil",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+            loadBookingSiapBayar();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    e.getMessage(),
+                    "Gagal Menggunakan Reward",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
 
     private JPanel rowText(String left, JLabel rightLabel, boolean bold, boolean darkLeft) {
         JPanel row = new JPanel(new BorderLayout());
         row.setOpaque(false);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel leftLabel = new JLabel(left);
         leftLabel.setFont(new Font("Segoe UI", bold ? Font.BOLD : Font.PLAIN, bold ? 15 : 14));
@@ -1096,6 +1319,7 @@ public class ProsesBayarPage extends JPanel {
         JLabel label = new JLabel(text);
         label.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         label.setForeground(MUTED);
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
         return label;
     }
 
@@ -1122,9 +1346,9 @@ public class ProsesBayarPage extends JPanel {
         button.setBackground(DARK);
         button.setForeground(Color.WHITE);
         button.setHoverBackground(new Color(35, 35, 35));
-        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        button.setFont(new Font("Segoe UI", Font.BOLD, 12));
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setBorder(new EmptyBorder(0, 18, 0, 18));
+        button.setBorder(new EmptyBorder(0, 12, 0, 12));
         return button;
     }
 
@@ -1134,11 +1358,16 @@ public class ProsesBayarPage extends JPanel {
         button.setForeground(TEXT);
         button.setHoverBackground(new Color(248, 248, 248));
         button.setRoundedBorder(BORDER, 1);
-        button.setIcon(svgIcon(iconPath, 16, 16, TEXT).getIcon());
-        button.setIconTextGap(10);
-        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        JLabel iconLabel = svgIcon(iconPath, 15, 15, TEXT);
+        if (iconLabel.getIcon() != null) {
+            button.setIcon(iconLabel.getIcon());
+            button.setIconTextGap(8);
+        }
+
+        button.setFont(new Font("Segoe UI", Font.BOLD, 12));
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setBorder(new EmptyBorder(0, 18, 0, 18));
+        button.setBorder(new EmptyBorder(0, 12, 0, 12));
         return button;
     }
 
@@ -1146,6 +1375,7 @@ public class ProsesBayarPage extends JPanel {
         JSeparator sep = new JSeparator();
         sep.setForeground(new Color(226, 226, 226));
         sep.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        sep.setAlignmentX(Component.LEFT_ALIGNMENT);
         return sep;
     }
 
@@ -1178,6 +1408,7 @@ public class ProsesBayarPage extends JPanel {
         panel.setOpaque(false);
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 12));
         panel.setPreferredSize(new Dimension(100, 12));
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         return panel;
     }
@@ -1275,10 +1506,6 @@ public class ProsesBayarPage extends JPanel {
 
         return value;
     }
-
-    // =========================================================
-    // CUSTOM COMPONENTS
-    // =========================================================
 
     static class RoundedPanel extends JPanel {
 
@@ -1450,14 +1677,19 @@ public class ProsesBayarPage extends JPanel {
                 @Override
                 public void mouseEntered(MouseEvent e) {
                     normalBackground = getBackground();
-                    setBackground(hoverBackground);
-                    repaint();
+
+                    if (isEnabled()) {
+                        setBackground(hoverBackground);
+                        repaint();
+                    }
                 }
 
                 @Override
                 public void mouseExited(MouseEvent e) {
-                    setBackground(normalBackground);
-                    repaint();
+                    if (normalBackground != null) {
+                        setBackground(normalBackground);
+                        repaint();
+                    }
                 }
             });
         }
@@ -1500,7 +1732,6 @@ public class ProsesBayarPage extends JPanel {
             }
 
             g2.dispose();
-
             super.paintComponent(g);
         }
     }
